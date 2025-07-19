@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,113 +8,89 @@ import (
 
 type mode int
 
-const (
-	ModeMenu mode = iota
-	ModeCreateRepo
-	ModeSelectGroup
-	ModeDone
-)
+type screenDoneMsg struct{}
+type switchToMenuMsg struct{}
+type switchToCreateRepoMsg struct{}
+type switchToSelectGroupMsg struct {
+	repoName    string
+	description string
+}
+
+type appState struct {
+	manifestLoader *manifest.ManifestLoader
+	createdRepo    domain.Repository
+	selectedGroup  string
+	message        string
+}
+
+func (m *appState) GetManifestLoader() *manifest.ManifestLoader {
+	return m.manifestLoader
+}
 
 type model struct {
-	currentMode mode
+	curScreen tea.Model
+	state     appState
 
-	menu            MenuModel
-	createRepoForm  CreateRepoModel
-	selectGroupForm SelectGroupModel
-
-	createdRepo   domain.Repository
-	selectedGroup string
-	msg           string
-
-	manifestLoader *manifest.ManifestLoader
+	width  int
+	height int
 }
 
 func NewAppModel(groupDir string) model {
-	return model{
-		currentMode:    ModeMenu,
-		menu:           NewMenuModel(),
+	state := appState{
 		manifestLoader: manifest.NewManifestLoader(groupDir),
+	}
+
+	return model{
+		state:     state,
+		curScreen: NewMenuModel(),
+	}
+}
+
+func switchToMenu() tea.Cmd {
+	return func() tea.Msg {
+		return switchToMenuMsg{}
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return m.menu.Init()
+	return switchToMenu()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch m.currentMode {
-	case ModeMenu:
-		newMenu, cmd, choice := m.menu.Update(msg)
-		m.menu = newMenu
-		switch choice {
-		case ChoiceCreateRepo:
-			m.createRepoForm = NewCreateRepoModel()
-			m.currentMode = ModeCreateRepo
+	switch msg := msg.(type) {
+	case switchToMenuMsg:
+		menu := NewMenuModel()
+		m.curScreen = menu
+		return m, menu.Init()
+	case switchToCreateRepoMsg:
+		createRepoModel := NewCreateRepoModel()
+		m.curScreen = createRepoModel
+		return m, createRepoModel.Init()
+	case switchToSelectGroupMsg:
+		selectGroupModel := NewSelectGroupModel(m.state.GetManifestLoader().Groups(), m.width, m.height)
+		m.curScreen = selectGroupModel
+		return m, selectGroupModel.Init()
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
 		}
-		return m, cmd
+	case tea.WindowSizeMsg:
+		// I save this to pass the size to the selectGroup model
+		m.width = msg.Width
+		m.height = msg.Height
 
-	case ModeCreateRepo:
-		newForm, cmd, done := m.createRepoForm.Update(msg)
-		m.createRepoForm = newForm
-		if done {
-			groupNames := m.manifestLoader.Groups()
-			if len(groupNames) == 0 {
-				m.msg = fmt.Sprintf("warning: no groups found")
-				m.currentMode = ModeDone
-				return m, nil
-			}
-			m.selectGroupForm = NewSelectGroupModel(groupNames)
-			m.currentMode = ModeSelectGroup
-		}
-		return m, cmd
-
-	case ModeSelectGroup:
-		newSelect, cmd, selected, done := m.selectGroupForm.Update(msg)
-		m.selectGroupForm = newSelect
-		if done {
-			m.createdRepo = domain.Repository{
-				Name:        m.createRepoForm.repoName,
-				Description: m.createRepoForm.description,
-			}
-			m.selectedGroup = selected
-			// Inject the createdRepo into the group and write to file
-			gf := m.manifestLoader.GetGroup(selected)
-			if gf == nil {
-				m.msg = fmt.Sprintf("failed to load group %s", selected)
-				m.currentMode = ModeDone
-				return m, nil
-			}
-			gf.Manifest.Spec.Repositories = append(gf.Manifest.Spec.Repositories, m.createdRepo)
-			if err := m.manifestLoader.SaveGroupFile(gf); err != nil {
-				m.msg = fmt.Sprintf("failed to save group file: %v", err)
-			} else {
-				m.msg = fmt.Sprintf("Repo %q added to group %q", m.createdRepo.Name, selected)
-			}
-			m.currentMode = ModeDone
-		}
-		return m, cmd
-
-	case ModeDone:
-		if key, ok := msg.(tea.KeyMsg); ok && (key.String() == "enter" || key.String() == "q") {
-			m.currentMode = ModeMenu
-		}
-		return m, nil
 	}
-
-	return m, nil
+	// Delegate message to current screen
+	newScreen, cmd := m.curScreen.Update(msg)
+	m.curScreen = newScreen
+	return m, cmd
 }
 
 func (m model) View() string {
-	switch m.currentMode {
-	case ModeMenu:
-		return m.menu.View()
-	case ModeCreateRepo:
-		return m.createRepoForm.View()
-	case ModeSelectGroup:
-		return m.selectGroupForm.View()
-	case ModeDone:
-		return fmt.Sprintf("\n%s\n\nPress enter or q to continue...", m.msg)
-	default:
-		return "unknown mode"
+	if m.curScreen == nil {
+		return "No screen to display"
 	}
+
+	return m.curScreen.View()
 }

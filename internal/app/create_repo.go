@@ -44,7 +44,11 @@ func NewCreateRepoModel() CreateRepoModel {
 	}
 }
 
-func (m CreateRepoModel) Update(msg tea.Msg) (CreateRepoModel, tea.Cmd, bool) {
+func (m CreateRepoModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m CreateRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -61,16 +65,18 @@ func (m CreateRepoModel) Update(msg tea.Msg) (CreateRepoModel, tea.Cmd, bool) {
 				m.step = StepDone
 				m.input.SetValue("")
 				m.input.Placeholder = "description"
-				// we are done, so we can proceed to group selection
-				return m, nil, true
+				return m, func() tea.Msg {
+					return switchToSelectGroupMsg{
+						repoName:    m.repoName,
+						description: m.description,
+					}
+				}
 			}
-		case "esc":
-			return m, tea.Quit, false
 		}
 	}
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
-	return m, cmd, false
+	return m, cmd
 }
 
 func (m CreateRepoModel) View() string {

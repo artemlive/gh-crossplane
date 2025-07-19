@@ -1,8 +1,6 @@
 package app
 
 import (
-	"os"
-
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -38,11 +36,10 @@ func newListKeyMap() *listKeyMap {
 }
 
 func (m SelectGroupModel) Init() tea.Cmd {
-	os.Exit(1)
 	return nil
 }
 
-func NewSelectGroupModel(groups []manifest.GroupFile) SelectGroupModel {
+func NewSelectGroupModel(groups []manifest.GroupFile, width, height int) SelectGroupModel {
 	listKeys := newListKeyMap()
 
 	listItems := make([]list.Item, len(groups))
@@ -51,7 +48,7 @@ func NewSelectGroupModel(groups []manifest.GroupFile) SelectGroupModel {
 	}
 
 	// set the defaul size for the list due to bug if I set it to 0,0
-	groupsList := list.New(listItems, list.NewDefaultDelegate(), 0, 0)
+	groupsList := list.New(listItems, list.NewDefaultDelegate(), width, height)
 	groupsList.Title = "Select Group Or Add New by pressing 'a'"
 	groupsList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
@@ -64,26 +61,10 @@ func NewSelectGroupModel(groups []manifest.GroupFile) SelectGroupModel {
 		cursor:     0,
 		list:       groupsList,
 		keys:       listKeys,
-		onStartup:  true,
 	}
 }
 
-func (m SelectGroupModel) Update(msg tea.Msg) (SelectGroupModel, tea.Cmd, string, bool) {
-	//	_, isWindowSizeMsg := msg.(tea.WindowSizeMsg)
-	//
-	//	// Since this program is using the full size of the viewport we
-	//	// need to wait until we've received the window dimensions before
-	//	// we can initialize the viewport. The initial dimensions come in
-	//	// quickly, though asynchronously, which is why we wait for them
-	//	// here.
-	//	if m.onStartup && !isWindowSizeMsg {
-	//		return m, nil, "", false
-	//	}
-	//	if m.onStartup && isWindowSizeMsg {
-	//		h, v := appStyle.GetFrameSize()
-	//		m.list.SetSize(msg.(tea.WindowSizeMsg).Width-h, msg.(tea.WindowSizeMsg).Height-v)
-	//		m.onStartup = false
-	//	}
+func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -97,7 +78,7 @@ func (m SelectGroupModel) Update(msg tea.Msg) (SelectGroupModel, tea.Cmd, string
 		switch {
 		case key.Matches(msg, m.keys.selectGroup):
 			if len(m.groupNames) == 0 {
-				return m, nil, "", false
+				return m, nil
 			}
 			m.selectedGroup = m.groupNames[m.cursor].Manifest.Metadata.Name
 		}
@@ -107,7 +88,7 @@ func (m SelectGroupModel) Update(msg tea.Msg) (SelectGroupModel, tea.Cmd, string
 	newSelectGroupModel, cmd := m.list.Update(msg)
 	m.list = newSelectGroupModel
 	cmds = append(cmds, cmd)
-	return m, tea.Batch(cmds...), m.selectedGroup, false
+	return m, tea.Batch(cmds...)
 
 }
 

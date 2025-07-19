@@ -36,7 +36,7 @@ func (m MenuModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m MenuModel) Update(msg tea.Msg) (MenuModel, tea.Cmd, MenuChoice) {
+func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -49,12 +49,18 @@ func (m MenuModel) Update(msg tea.Msg) (MenuModel, tea.Cmd, MenuChoice) {
 				m.cursor++
 			}
 		case "enter":
-			return m, nil, menuOrder[m.cursor]
+			switch menuOrder[m.cursor] {
+			case ChoiceCreateRepo:
+				return m, func() tea.Msg { return switchToCreateRepoMsg{} }
+			case ChoiceConfigureRepo:
+				return m, func() tea.Msg { return switchToSelectGroupMsg{} }
+			}
+			return m, nil
 		case "q":
-			return m, tea.Quit, MenuChoice(-1)
+			return m, tea.Quit
 		}
 	}
-	return m, nil, MenuChoice(-1)
+	return m, nil
 }
 
 func (m MenuModel) View() string {
