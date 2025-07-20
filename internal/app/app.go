@@ -8,9 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type mode int
-
-type screenDoneMsg struct{}
 type switchToMenuMsg struct{}
 type switchToCreateRepoMsg struct{}
 type switchToSelectGroupMsg struct {
@@ -25,8 +22,6 @@ type switchToConfigureGroupMsg struct {
 
 type appState struct {
 	manifestLoader *manifest.ManifestLoader
-	createdRepo    domain.Repository
-	selectedGroup  string
 }
 
 func (m *appState) GetManifestLoader() *manifest.ManifestLoader {

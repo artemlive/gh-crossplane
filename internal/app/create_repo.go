@@ -11,9 +11,6 @@ type CreateRepoModel struct {
 	step        int
 	repoName    string
 	description string
-	curTeamName string
-	permission  string
-	teamPerms   []TeamPermission
 
 	message string
 	input   textinput.Model

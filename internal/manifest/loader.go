@@ -107,10 +107,10 @@ func (m *ManifestLoader) SaveGroupFile(gf *GroupFile) error {
 	if err != nil {
 		return fmt.Errorf("create file %s: %w", gf.Path, err)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	enc := yaml.NewEncoder(f)
 	enc.SetIndent(1)
-	defer enc.Close()
+	defer enc.Close() //nolint:errcheck
 	return enc.Encode(gf.Manifest)
 }
