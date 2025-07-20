@@ -25,8 +25,7 @@ func (g GroupFile) Title() string {
 }
 
 func (g GroupFile) Description() string {
-	//return fmt.Sprintf("Repositories Group: %s with %d repos", g.Manifest.Metadata.Name, len(g.Manifest.Spec.Repositories))
-	return fmt.Sprintf("Repositories Group: %s", g.Manifest.Metadata.Name)
+	return fmt.Sprintf("File: %s", filepath.Base(g.Path))
 }
 
 func (g GroupFile) FilterValue() string {

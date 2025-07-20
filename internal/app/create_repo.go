@@ -15,7 +15,8 @@ type CreateRepoModel struct {
 	permission  string
 	teamPerms   []TeamPermission
 
-	input textinput.Model
+	message string
+	input   textinput.Model
 }
 
 type TeamPermission struct {
@@ -54,17 +55,20 @@ func (m CreateRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "enter":
 			val := m.input.Value()
+			if val == "" {
+				m.message = "please enter a value"
+				return m, nil // Do nothing if input is empty
+			}
+
 			switch m.step {
 			case StepRepoName:
 				m.repoName = val
 				m.step = StepDescription
 				m.input.SetValue("")
-				m.input.Placeholder = "repo-name"
 			case StepDescription:
 				m.description = val
 				m.step = StepDone
 				m.input.SetValue("")
-				m.input.Placeholder = "description"
 				return m, func() tea.Msg {
 					return switchToSelectGroupMsg{
 						repoName:    m.repoName,
@@ -72,6 +76,8 @@ func (m CreateRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+		default:
+			m.message = ""
 		}
 	}
 	var cmd tea.Cmd
@@ -84,16 +90,18 @@ func (m CreateRepoModel) View() string {
 	switch m.step {
 	case StepRepoName:
 		prompt = "Enter repository name:"
+		m.input.Placeholder = "repo-name"
 	case StepDescription:
 		prompt = "Enter repository description:"
+		m.input.Placeholder = "description"
 	case StepDone:
 		prompt = "Done!"
 	}
 
-	summary := ""
-	for _, tp := range m.teamPerms {
-		summary += fmt.Sprintf(" - %s: %s\n", tp.Team, tp.Permission)
+	information := ""
+	if m.message != "" {
+		information = fmt.Sprintf("\n\n%s", infoMessageStyle.Render(m.message))
 	}
 
-	return fmt.Sprintf("%s\n%s\n\n%s", prompt, m.input.View(), summary)
+	return fmt.Sprintf("%s\n%s\n%s", prompt, m.input.View(), information)
 }

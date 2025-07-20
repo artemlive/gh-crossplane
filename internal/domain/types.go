@@ -15,34 +15,34 @@ type Metadata struct {
 }
 
 type RepositoriesGroupSpec struct {
-	DeletionPolicy           string        `yaml:"deletionPolicy,omitempty"`
-	ManagementPolicies       []string      `yaml:"managementPolicies,omitempty"`
-	Repositories             []Repository  `yaml:"repositories"`
-	Permissions              []Permission  `yaml:"permissions,omitempty"`
-	Topics                   []string      `yaml:"topics,omitempty"`
-	Protections              []Protection  `yaml:"protections,omitempty"`
-	SecurityAndAnalysis      []SecAnalysis `yaml:"securityAndAnalysis,omitempty"`
-	DefaultBranch            string        `yaml:"defaultBranch,omitempty"`
-	Visibility               string        `yaml:"visibility,omitempty"`
-	HasIssues                *bool         `yaml:"hasIssues,omitempty"`
-	HasDownloads             *bool         `yaml:"hasDownloads,omitempty"`
-	HasWiki                  *bool         `yaml:"hasWiki,omitempty"`
-	AllowAutoMerge           *bool         `yaml:"allowAutoMerge,omitempty"`
-	AllowSquashMerge         *bool         `yaml:"allowSquashMerge,omitempty"`
-	DeleteBranchOnMerge      *bool         `yaml:"deleteBranchOnMerge,omitempty"`
-	AutoInit                 *bool         `yaml:"autoInit,omitempty"`
-	ArchiveOnDestroy         *bool         `yaml:"archiveOnDestroy,omitempty"`
-	HasDiscussions           *bool         `yaml:"hasDiscussions,omitempty"`
-	AllowUpdateBranch        *bool         `yaml:"allowUpdateBranch,omitempty"`
-	AllowMergeCommit         *bool         `yaml:"allowMergeCommit,omitempty"`
-	AllowRebaseMerge         *bool         `yaml:"allowRebaseMerge,omitempty"`
-	IsTemplate               *bool         `yaml:"isTemplate,omitempty"`
-	MergeCommitMessage       string        `yaml:"mergeCommitMessage,omitempty"`
-	MergeCommitTitle         string        `yaml:"mergeCommitTitle,omitempty"`
-	SquashMergeCommitMessage string        `yaml:"squashMergeCommitMessage,omitempty"`
-	SquashMergeCommitTitle   string        `yaml:"squashMergeCommitTitle,omitempty"`
-	VulnerabilityAlerts      *bool         `yaml:"vulnerabilityAlerts,omitempty"`
-	AutolinkReferences       []AutolinkRef `yaml:"autolinkReferences,omitempty"`
+	DeletionPolicy           string        `yaml:"deletionPolicy,omitempty" ui:"type=text,label=Deletion Policy"`
+	ManagementPolicies       []string      `yaml:"managementPolicies,omitempty"`  // omit: complex
+	Repositories             []Repository  `yaml:"repositories"`                  // omit: complex
+	Permissions              []Permission  `yaml:"permissions,omitempty"`         // omit: complex
+	Topics                   []string      `yaml:"topics,omitempty"`              // omit: complex
+	Protections              []Protection  `yaml:"protections,omitempty"`         // omit: complex
+	SecurityAndAnalysis      []SecAnalysis `yaml:"securityAndAnalysis,omitempty"` // omit: complex
+	DefaultBranch            string        `yaml:"defaultBranch,omitempty" ui:"type=text,label=Default Branch"`
+	Visibility               string        `yaml:"visibility,omitempty" ui:"type=text,label=Visibility"`
+	HasIssues                *bool         `yaml:"hasIssues,omitempty" ui:"type=checkbox,label=Has Issues"`
+	HasDownloads             *bool         `yaml:"hasDownloads,omitempty" ui:"type=checkbox,label=Has Downloads"`
+	HasWiki                  *bool         `yaml:"hasWiki,omitempty" ui:"type=checkbox,label=Has Wiki"`
+	AllowAutoMerge           *bool         `yaml:"allowAutoMerge,omitempty" ui:"type=checkbox,label=Allow Auto-Merge"`
+	AllowSquashMerge         *bool         `yaml:"allowSquashMerge,omitempty" ui:"type=checkbox,label=Allow Squash Merge"`
+	DeleteBranchOnMerge      *bool         `yaml:"deleteBranchOnMerge,omitempty" ui:"type=checkbox,label=Delete Branch on Merge"`
+	AutoInit                 *bool         `yaml:"autoInit,omitempty" ui:"type=checkbox,label=Auto Init"`
+	ArchiveOnDestroy         *bool         `yaml:"archiveOnDestroy,omitempty" ui:"type=checkbox,label=Archive on Destroy"`
+	HasDiscussions           *bool         `yaml:"hasDiscussions,omitempty" ui:"type=checkbox,label=Has Discussions"`
+	AllowUpdateBranch        *bool         `yaml:"allowUpdateBranch,omitempty" ui:"type=checkbox,label=Allow Update Branch"`
+	AllowMergeCommit         *bool         `yaml:"allowMergeCommit,omitempty" ui:"type=checkbox,label=Allow Merge Commit"`
+	AllowRebaseMerge         *bool         `yaml:"allowRebaseMerge,omitempty" ui:"type=checkbox,label=Allow Rebase Merge"`
+	IsTemplate               *bool         `yaml:"isTemplate,omitempty" ui:"type=checkbox,label=Is Template"`
+	MergeCommitMessage       string        `yaml:"mergeCommitMessage,omitempty" ui:"type=text,label=Merge Commit Message"`
+	MergeCommitTitle         string        `yaml:"mergeCommitTitle,omitempty" ui:"type=text,label=Merge Commit Title"`
+	SquashMergeCommitMessage string        `yaml:"squashMergeCommitMessage,omitempty" ui:"type=text,label=Squash Commit Message"`
+	SquashMergeCommitTitle   string        `yaml:"squashMergeCommitTitle,omitempty" ui:"type=text,label=Squash Commit Title"`
+	VulnerabilityAlerts      *bool         `yaml:"vulnerabilityAlerts,omitempty" ui:"type=checkbox,label=Vulnerability Alerts"`
+	AutolinkReferences       []AutolinkRef `yaml:"autolinkReferences,omitempty"` // omit: complex
 }
 
 type Repository struct {

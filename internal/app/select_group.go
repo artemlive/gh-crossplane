@@ -1,6 +1,9 @@
 package app
 
 import (
+	"fmt"
+
+	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -39,7 +42,7 @@ func (m SelectGroupModel) Init() tea.Cmd {
 	return nil
 }
 
-func NewSelectGroupModel(groups []manifest.GroupFile, width, height int) SelectGroupModel {
+func NewSelectGroupModel(groups []manifest.GroupFile, repo domain.Repository, width, height int) SelectGroupModel {
 	listKeys := newListKeyMap()
 
 	listItems := make([]list.Item, len(groups))
@@ -47,9 +50,15 @@ func NewSelectGroupModel(groups []manifest.GroupFile, width, height int) SelectG
 		listItems[i] = group
 	}
 
-	// set the defaul size for the list due to bug if I set it to 0,0
-	groupsList := list.New(listItems, list.NewDefaultDelegate(), width, height)
-	groupsList.Title = "Select Group Or Add New by pressing 'a'"
+	// we need this to get the frame size
+	// to adjust the size to fit the terminal
+	// same as we do in the window size message handler
+	h, v := appStyle.GetFrameSize()
+	groupsList := list.New(listItems, list.NewDefaultDelegate(), width-h, height-v)
+	groupsList.Title = "Select Group Or Add New By Pressing 'a'"
+	if repo.Name != "" {
+		groupsList.Title = fmt.Sprintf("Select Group For Repo '%s' Or Add New By Pressing 'a'", repo.Name)
+	}
 	groupsList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			listKeys.addGroup,
@@ -81,6 +90,9 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.selectedGroup = m.groupNames[m.cursor].Manifest.Metadata.Name
+			return m, func() tea.Msg {
+				return switchToConfigureGroupMsg{groupName: m.selectedGroup}
+			}
 		}
 
 	}

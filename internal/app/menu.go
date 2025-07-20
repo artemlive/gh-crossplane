@@ -68,9 +68,11 @@ func (m MenuModel) View() string {
 	for i, choice := range menuOrder {
 		cursor := " "
 		if m.cursor == i {
-			cursor = ">"
+			cursor = mainMenuCurosrStyle.Render(">")
+			s += cursor + " " + mainMenuCurosrStyle.Render(menuLabels[choice]) + "\n"
+		} else {
+			s += cursor + " " + menuLabels[choice] + "\n"
 		}
-		s += cursor + " " + menuLabels[choice] + "\n"
 	}
 	s += "\nUse up/down to move, enter to select, q to quit."
 	return s

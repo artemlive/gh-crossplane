@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,11 +18,15 @@ type switchToSelectGroupMsg struct {
 	description string
 }
 
+type switchToConfigureGroupMsg struct {
+	// maybe we could return the group object instead of just the name?
+	groupName string
+}
+
 type appState struct {
 	manifestLoader *manifest.ManifestLoader
 	createdRepo    domain.Repository
 	selectedGroup  string
-	message        string
 }
 
 func (m *appState) GetManifestLoader() *manifest.ManifestLoader {
@@ -31,8 +37,9 @@ type model struct {
 	curScreen tea.Model
 	state     appState
 
-	width  int
-	height int
+	message string
+	width   int
+	height  int
 }
 
 func NewAppModel(groupDir string) model {
@@ -67,9 +74,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.curScreen = createRepoModel
 		return m, createRepoModel.Init()
 	case switchToSelectGroupMsg:
-		selectGroupModel := NewSelectGroupModel(m.state.GetManifestLoader().Groups(), m.width, m.height)
+		// pass the width and height to the selectGroup model
+		// because it needs to know the size of the terminal
+		// since the window size message wasn't sent there on initialization
+		repo := domain.Repository{
+			Name:        msg.repoName,
+			Description: msg.description,
+		}
+		selectGroupModel := NewSelectGroupModel(m.state.GetManifestLoader().Groups(), repo, m.width, m.height)
 		m.curScreen = selectGroupModel
 		return m, selectGroupModel.Init()
+	case switchToConfigureGroupMsg:
+		groupName := msg.groupName
+		group := m.state.GetManifestLoader().GetGroup(groupName)
+		if group == nil {
+			m.message = fmt.Sprintf("Group '%s' not found", groupName)
+			return m, nil
+		}
+		configureGroupModel := NewConfigureGroupModel(group, m.width, m.height)
+		m.curScreen = configureGroupModel
+		return m, configureGroupModel.Init()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
