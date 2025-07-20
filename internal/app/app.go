@@ -91,7 +91,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.message = fmt.Sprintf("Group '%s' not found", groupName)
 			return m, nil
 		}
-		configureGroupModel := NewConfigureGroupModel(group, m.width, m.height)
+		configureGroupModel := NewConfigureGroupModel(group, m.state.manifestLoader, m.width, m.height)
 		m.curScreen = configureGroupModel
 		return m, configureGroupModel.Init()
 	case tea.KeyMsg:

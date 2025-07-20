@@ -22,6 +22,19 @@ const (
 	ModeEditing                     // editing a field
 )
 
+type MessageType int
+
+const (
+	MessageTypeInfo MessageType = iota
+	MessageTypeError
+	MessageTypeWarning
+)
+
+type Message struct {
+	Msg  string
+	Type MessageType
+}
+
 // TODO: consider moving this to a separate package or file
 // this is a list of field groups that will be used to render the configuration UI
 var FieldGroups = []FieldGroup{
@@ -113,10 +126,12 @@ type ConfigureGroupModel struct {
 	height          int
 	focusedIndex    int
 
-	mode FocusMode // current focus mode, either navigation or editing
+	mode    FocusMode // current focus mode, either navigation or editing
+	loader  *manifest.ManifestLoader
+	message Message
 }
 
-func NewConfigureGroupModel(group *manifest.GroupFile, width, height int) ConfigureGroupModel {
+func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.ManifestLoader, width, height int) ConfigureGroupModel {
 	m := ConfigureGroupModel{
 		tabs:         FieldGroups,
 		activeTab:    0,
@@ -125,6 +140,7 @@ func NewConfigureGroupModel(group *manifest.GroupFile, width, height int) Config
 		width:        width,
 		height:       height,
 		focusedIndex: 0,
+		loader:       loader,
 	}
 
 	// Initialize field components for each tab
@@ -222,6 +238,14 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				return m, nil
+			case "ctrl+s":
+				// Save the group configuration
+				if err := m.loader.SaveGroupFile(m.group); err != nil {
+					m.message = ErrorMessage("Error saving group: " + err.Error())
+				} else {
+					m.message = InfoMessage("Group saved successfully.")
+				}
+				return m, nil
 			}
 
 		case ModeEditing:
@@ -244,6 +268,7 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	return m, nil
 }
+
 func (m ConfigureGroupModel) View() string {
 	var lines []string
 
@@ -266,16 +291,35 @@ func (m ConfigureGroupModel) View() string {
 	style := lipgloss.NewStyle()
 	switch m.mode {
 	case ModeNavigation:
-		statusBar.WriteString("[Navigation Mode] Use Tab/Shift+Tab (up/down) to navigate, Enter to edit, Left/Right to switch tabs, q to quit")
+		statusBar.WriteString("[Navigation Mode] Up/Down to navigate, Enter to edit, Left/Right to switch tabs, q to quit")
 		style = configureGroupStatusStyleNavigation
 	case ModeEditing:
-		statusBar.WriteString("[Editing Mode] Press Esc or Enter to finish editing")
+		statusBar.WriteString("[Editing Mode] Press Esc or Enter to finish")
 		style = configureGroupStatusStyleEditing
 	}
 	if len(lines) == 0 {
 		lines = append(lines, "Not supported yet or no fields available in this tab.")
 	}
-	return m.renderTabs() + "\n" + strings.Join(lines, "\n\n") + "\n\n" + style.Render(statusBar.String())
+	renderedView := m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + style.Render(statusBar.String())
+
+	message := ""
+	if m.message.Msg != "" {
+		style := lipgloss.NewStyle()
+		switch m.message.Type {
+		case MessageTypeInfo:
+			style = infoMessageStyle
+			message = style.Render("[Info] " + m.message.Msg)
+		case MessageTypeError:
+			style = errorMessageStyle
+			message = style.Render("[Error] " + m.message.Msg)
+		case MessageTypeWarning:
+			style = warningMessageStyle
+			message = style.Render("[Warning] " + m.message.Msg)
+		}
+		renderedView += "\n\n" + message
+	}
+	return renderedView
+
 }
 
 func (m ConfigureGroupModel) renderTabs() string {
