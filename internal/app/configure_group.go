@@ -282,12 +282,28 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m ConfigureGroupModel) View() string {
 	var lines []string
 
-	// show field components if this tab has them
+	lines = append(lines, m.renderActiveTabContent()...)
+
+	if len(lines) == 0 {
+		lines = append(lines, "Not supported yet or no fields available in this tab.")
+	}
+
+	// Status bar rendering
+	statusBar := m.renderStatusBar()
+
+	// Optional message display (info, warning, error)
+	message := m.renderMessage()
+
+	return m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + statusBar + "\n" + message
+}
+
+func (m ConfigureGroupModel) renderActiveTabContent() []string {
+	var lines []string
 	if m.activeTab < len(m.fieldComponents) && m.fieldComponents[m.activeTab] != nil {
 		for _, c := range m.fieldComponents[m.activeTab] {
 			lines = append(lines, c.View())
 		}
-	} else if m.tabs[m.activeTab].TabName == "Repositories" { // we assume that the Repositories tab is a special case
+	} else if m.tabs[m.activeTab].TabName == "Repositories" {
 		for i, r := range m.group.Manifest.Spec.Repositories {
 			selector := "  "
 			if i == m.repoIndex {
@@ -297,8 +313,13 @@ func (m ConfigureGroupModel) View() string {
 			lines = append(lines, selector+name)
 		}
 	}
+	return lines
+}
+
+func (m ConfigureGroupModel) renderStatusBar() string {
 	var statusBar strings.Builder
-	style := lipgloss.NewStyle()
+	var style lipgloss.Style
+
 	switch m.mode {
 	case ModeNavigation:
 		statusBar.WriteString("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
@@ -307,25 +328,25 @@ func (m ConfigureGroupModel) View() string {
 		statusBar.WriteString("[EDT Mode] Press Esc or Enter to finish")
 		style = configureGroupStatusStyleEditing
 	}
-	if len(lines) == 0 {
-		lines = append(lines, "Not supported yet or no fields available in this tab.")
-	}
-	renderedView := m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + style.Render(statusBar.String())
 
-	message := ""
-	if m.message.Msg != "" {
-		switch m.message.Type {
-		case MessageTypeInfo:
-			message = infoMessageStyle.Render("[Info] " + m.message.Msg)
-		case MessageTypeError:
-			message = errorMessageStyle.Render("[Error] " + m.message.Msg)
-		case MessageTypeWarning:
-			message = warningMessageStyle.Render("[Warning] " + m.message.Msg)
-		}
-		renderedView += "\n\n" + message
-	}
-	return renderedView
+	return style.Render(statusBar.String())
+}
 
+func (m ConfigureGroupModel) renderMessage() string {
+	if m.message.Msg == "" {
+		return ""
+	}
+
+	var styledMsg string
+	switch m.message.Type {
+	case MessageTypeInfo:
+		styledMsg = infoMessageStyle.Render("[Info] " + m.message.Msg)
+	case MessageTypeError:
+		styledMsg = errorMessageStyle.Render("[Error] " + m.message.Msg)
+	case MessageTypeWarning:
+		styledMsg = warningMessageStyle.Render("[Warning] " + m.message.Msg)
+	}
+	return "\n\n" + styledMsg
 }
 
 func (m ConfigureGroupModel) renderTabs() string {
