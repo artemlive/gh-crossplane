@@ -16,8 +16,6 @@ type SelectGroupModel struct {
 	selectedGroup string
 	list          list.Model
 	keys          *listKeyMap
-
-	onStartup bool
 }
 
 type listKeyMap struct {
@@ -89,7 +87,7 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.groupNames) == 0 {
 				return m, nil
 			}
-			m.selectedGroup = m.groupNames[m.cursor].Manifest.Metadata.Name
+			m.selectedGroup = m.list.SelectedItem().(manifest.GroupFile).Manifest.Metadata.Name
 			return m, func() tea.Msg {
 				return switchToConfigureGroupMsg{groupName: m.selectedGroup}
 			}

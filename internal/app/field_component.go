@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -29,7 +28,7 @@ func (c *CheckboxComponent) Init() tea.Cmd {
 
 func (c *CheckboxComponent) Update(msg tea.Msg, mode FocusMode) (FieldComponent, tea.Cmd) {
 	if mode != ModeEditing {
-		return c, nil // Only handle updates in editing mode
+		return c, nil // only handle updates in editing mode
 	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -42,6 +41,12 @@ func (c *CheckboxComponent) Update(msg tea.Msg, mode FocusMode) (FieldComponent,
 			} else {
 				*c.Value = !*c.Value
 			}
+		case "up", "k":
+			// Move focus to the previous component
+			return c, func() tea.Msg { return FieldDoneUpMsg{} }
+		case "down", "j":
+			// Move focus to the next component
+			return c, func() tea.Msg { return FieldDoneDownMsg{} }
 		}
 	}
 	return c, nil
@@ -69,11 +74,6 @@ func (c *CheckboxComponent) Blur() {
 
 func (c *CheckboxComponent) IsFocused() bool {
 	return c.Focused
-}
-
-func (c *CheckboxComponent) WantsKey(msg tea.KeyMsg) bool {
-	// CheckboxComponent wants key messages for space and enter
-	return msg.String() == " " || msg.String() == "enter"
 }
 
 type TextInputComponent struct {
@@ -117,10 +117,6 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode FocusMode) (FieldComponent
 	return c, cmd
 }
 
-func (c *TextInputComponent) WantsKey(msg tea.KeyMsg) bool {
-	return true // TextInputComponent always wants key messages
-}
-
 func (c *TextInputComponent) Focus()          { c.ti.Focus(); c.focused = true }
 func (c *TextInputComponent) Blur()           { c.ti.Blur(); c.focused = false }
 func (c *TextInputComponent) IsFocused() bool { return c.focused }
@@ -136,30 +132,11 @@ type FieldComponent interface {
 	Focus()
 	Blur()
 	IsFocused() bool
-	WantsKey(msg tea.KeyMsg) bool
 }
 
 type FieldDoneMsg struct{}
-
-// KeyMap for form navigation
-var Keys = struct {
-	Up    key.Binding
-	Down  key.Binding
-	Enter key.Binding
-}{
-	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", "move up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "move down"),
-	),
-	Enter: key.NewBinding(
-		key.WithKeys("enter", " "),
-		key.WithHelp("enter/space", "toggle/select"),
-	),
-}
+type FieldDoneUpMsg struct{}
+type FieldDoneDownMsg struct{}
 
 func GenerateComponentsByPaths(obj any, paths []string) []FieldComponent {
 	root := reflect.ValueOf(obj)

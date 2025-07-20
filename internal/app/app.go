@@ -37,7 +37,7 @@ type model struct {
 	curScreen tea.Model
 	state     appState
 
-	message string
+	message Message
 	width   int
 	height  int
 }
@@ -88,7 +88,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		groupName := msg.groupName
 		group := m.state.GetManifestLoader().GetGroup(groupName)
 		if group == nil {
-			m.message = fmt.Sprintf("Group '%s' not found", groupName)
+			// TODO: render error message on the screen
+			m.message = ErrorMessage(fmt.Sprintf("Group '%s' not found", groupName))
 			return m, nil
 		}
 		configureGroupModel := NewConfigureGroupModel(group, m.state.manifestLoader, m.width, m.height)

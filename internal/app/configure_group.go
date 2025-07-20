@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/artemlive/gh-crossplane/internal/manifest"
@@ -143,7 +144,7 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 		loader:       loader,
 	}
 
-	// Initialize field components for each tab
+	// initialize field components for each tab
 	for _, fg := range FieldGroups {
 		if fg.GroupLevel {
 			components := GenerateComponentsByPaths(&group.Manifest, fg.FieldPaths)
@@ -207,10 +208,19 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.mode = ModeNavigation
 		return m, nil
+	// if the control is in editing mode but signalizes
+	// that we should go to the next/previous field
+	case FieldDoneUpMsg:
+		m.handlePrevField()
+		return m, nil
+	case FieldDoneDownMsg:
+		m.handleNextField()
+		return m, nil
 
 	case tea.KeyMsg:
-		switch m.mode {
+		m.message = Message{} // Clear any previous message
 
+		switch m.mode {
 		case ModeNavigation:
 			switch msg.String() {
 			case "ctrl+c", "q":
@@ -243,7 +253,7 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err := m.loader.SaveGroupFile(m.group); err != nil {
 					m.message = ErrorMessage("Error saving group: " + err.Error())
 				} else {
-					m.message = InfoMessage("Group saved successfully.")
+					m.message = InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
 				}
 				return m, nil
 			}
@@ -291,10 +301,10 @@ func (m ConfigureGroupModel) View() string {
 	style := lipgloss.NewStyle()
 	switch m.mode {
 	case ModeNavigation:
-		statusBar.WriteString("[Navigation Mode] Up/Down to navigate, Enter to edit, Left/Right to switch tabs, q to quit")
+		statusBar.WriteString("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
 		style = configureGroupStatusStyleNavigation
 	case ModeEditing:
-		statusBar.WriteString("[Editing Mode] Press Esc or Enter to finish")
+		statusBar.WriteString("[EDT Mode] Press Esc or Enter to finish")
 		style = configureGroupStatusStyleEditing
 	}
 	if len(lines) == 0 {
@@ -304,17 +314,13 @@ func (m ConfigureGroupModel) View() string {
 
 	message := ""
 	if m.message.Msg != "" {
-		style := lipgloss.NewStyle()
 		switch m.message.Type {
 		case MessageTypeInfo:
-			style = infoMessageStyle
-			message = style.Render("[Info] " + m.message.Msg)
+			message = infoMessageStyle.Render("[Info] " + m.message.Msg)
 		case MessageTypeError:
-			style = errorMessageStyle
-			message = style.Render("[Error] " + m.message.Msg)
+			message = errorMessageStyle.Render("[Error] " + m.message.Msg)
 		case MessageTypeWarning:
-			style = warningMessageStyle
-			message = style.Render("[Warning] " + m.message.Msg)
+			message = warningMessageStyle.Render("[Warning] " + m.message.Msg)
 		}
 		renderedView += "\n\n" + message
 	}
@@ -334,16 +340,6 @@ func (m ConfigureGroupModel) renderTabs() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
 }
 
-func boolStr(b *bool) string {
-	if b == nil {
-		return "unset"
-	}
-	if *b {
-		return "true"
-	}
-	return "false"
-}
-
 func ifEmpty(a, b string) string {
 	if a != "" {
 		return a
@@ -355,5 +351,3 @@ var (
 	inactiveTabStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).BorderForeground(lipgloss.Color("240"))
 	activeTabStyle   = inactiveTabStyle.BorderBottom(false).Bold(true)
 )
-
-// TODO: add switchToConfigureRepoMsg for per-repo editing
