@@ -150,7 +150,7 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 			components := GenerateComponentsByPaths(&group.Manifest, fg.FieldPaths)
 			m.fieldComponents = append(m.fieldComponents, components)
 		} else {
-			m.fieldComponents = append(m.fieldComponents, nil) // placeholder for "Repositories"
+			m.fieldComponents = append(m.fieldComponents, GenerateRepoComponents(group.Manifest.Spec.Repositories))
 		}
 	}
 	return m
@@ -303,15 +303,15 @@ func (m ConfigureGroupModel) renderActiveTabContent() []string {
 		for _, c := range m.fieldComponents[m.activeTab] {
 			lines = append(lines, c.View())
 		}
+		// TODO: refactor this to get rid of the hardcoded "Repositories" tab
 	} else if m.tabs[m.activeTab].TabName == "Repositories" {
-		for i, r := range m.group.Manifest.Spec.Repositories {
-			selector := "  "
-			if i == m.repoIndex {
-				selector = "→ "
-			}
-			name := ifEmpty(r.Name, "<unnamed>")
-			lines = append(lines, selector+name)
+		components := m.fieldComponents[m.activeTab]
+
+		// set focus state before rendering
+		for _, comp := range components {
+			lines = append(lines, comp.View())
 		}
+
 	}
 	return lines
 }

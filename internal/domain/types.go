@@ -16,8 +16,8 @@ type Metadata struct {
 
 type RepositoriesGroupSpec struct {
 	DeletionPolicy           string        `yaml:"deletionPolicy,omitempty" ui:"type=text,label=Deletion Policy"`
-	ManagementPolicies       []string      `yaml:"managementPolicies,omitempty"`  // omit: complex
-	Repositories             []Repository  `yaml:"repositories"`                  // omit: complex
+	ManagementPolicies       []string      `yaml:"managementPolicies,omitempty"` // omit: complex
+	Repositories             []Repository  `yaml:"repositories" ui:"type=repository,label=Repositories"`
 	Permissions              []Permission  `yaml:"permissions,omitempty"`         // omit: complex
 	Topics                   []string      `yaml:"topics,omitempty"`              // omit: complex
 	Protections              []Protection  `yaml:"protections,omitempty"`         // omit: complex
@@ -46,17 +46,17 @@ type RepositoriesGroupSpec struct {
 }
 
 type Repository struct {
-	Name                string        `yaml:"name"`
-	Description         string        `yaml:"description,omitempty"`
-	Permissions         []Permission  `yaml:"permissions,omitempty"`
-	Topics              []string      `yaml:"topics,omitempty"`
-	Archived            *bool         `yaml:"archived,omitempty"`
-	Visibility          string        `yaml:"visibility,omitempty"`
-	DefaultBranch       string        `yaml:"defaultBranch,omitempty"`
-	AllowAutoMerge      *bool         `yaml:"allowAutoMerge,omitempty"`
-	DeleteBranchOnMerge *bool         `yaml:"deleteBranchOnMerge,omitempty"`
-	SecurityAndAnalysis []SecAnalysis `yaml:"securityAndAnalysis,omitempty"`
-	Protections         []Protection  `yaml:"protections,omitempty"`
+	Name                string        `yaml:"name" ui:"type=text,label=Name"`
+	Description         string        `yaml:"description,omitempty" ui:"type=text,label=Description"`
+	Permissions         []Permission  `yaml:"permissions,omitempty"` // omit: complex
+	Topics              []string      `yaml:"topics,omitempty"`      // omit: complex
+	Archived            *bool         `yaml:"archived,omitempty" ui:"type=checkbox,label=Archived"`
+	Visibility          string        `yaml:"visibility,omitempty" ui:"type=text,label=Visibility"`
+	DefaultBranch       string        `yaml:"defaultBranch,omitempty" ui:"type=text,label=Default Branch"`
+	AllowAutoMerge      *bool         `yaml:"allowAutoMerge,omitempty" ui:"type=checkbox,label=Allow Auto-Merge"`
+	DeleteBranchOnMerge *bool         `yaml:"deleteBranchOnMerge,omitempty" ui:"type=checkbox,label=Delete Branch on Merge"`
+	SecurityAndAnalysis []SecAnalysis `yaml:"securityAndAnalysis,omitempty"` // omit: complex
+	Protections         []Protection  `yaml:"protections,omitempty"`         // omit: complex
 }
 
 type Permission struct {

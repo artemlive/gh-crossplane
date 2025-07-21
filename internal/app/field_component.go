@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -138,6 +139,14 @@ type FieldDoneMsg struct{}
 type FieldDoneUpMsg struct{}
 type FieldDoneDownMsg struct{}
 
+func GenerateRepoComponents(repos []domain.Repository) []FieldComponent {
+	var components []FieldComponent
+	for i, repo := range repos {
+		components = append(components, NewRepoComponent(repo, i))
+	}
+	return components
+}
+
 func GenerateComponentsByPaths(obj any, paths []string) []FieldComponent {
 	root := reflect.ValueOf(obj)
 	// unwrap pointer if necessary
@@ -202,4 +211,40 @@ func parseTag(tag string) map[string]string {
 		}
 	}
 	return out
+}
+
+type RepoComponent struct {
+	repo    *domain.Repository
+	index   int
+	focused bool
+}
+
+func NewRepoComponent(repo domain.Repository, index int) *RepoComponent {
+	return &RepoComponent{
+		repo:  &repo,
+		index: index,
+	}
+}
+
+func (r *RepoComponent) View() string {
+	prefix := "  "
+	if r.focused {
+		prefix = "→ "
+	}
+	name := ifEmpty(r.repo.Name, "<unnamed>")
+	return prefix + name
+}
+
+func (r *RepoComponent) Focus() { r.focused = true }
+func (r *RepoComponent) Blur()  { r.focused = false }
+func (r *RepoComponent) Update(msg tea.Msg, mode FocusMode) (FieldComponent, tea.Cmd) {
+	return r, nil
+}
+
+func (r *RepoComponent) IsFocused() bool {
+	return r.focused
+}
+
+func (r *RepoComponent) Init() tea.Cmd {
+	return nil
 }
