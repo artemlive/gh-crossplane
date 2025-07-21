@@ -19,8 +19,9 @@ type SelectGroupModel struct {
 }
 
 type listKeyMap struct {
-	addGroup    key.Binding
-	selectGroup key.Binding
+	addGroup     key.Binding
+	selectGroup  key.Binding
+	returnToMenu key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
@@ -33,6 +34,9 @@ func newListKeyMap() *listKeyMap {
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "select group"),
 		),
+		returnToMenu: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "return to main menu")),
 	}
 }
 
@@ -53,6 +57,7 @@ func NewSelectGroupModel(groups []manifest.GroupFile, repo domain.Repository, wi
 	// same as we do in the window size message handler
 	h, v := appStyle.GetFrameSize()
 	groupsList := list.New(listItems, list.NewDefaultDelegate(), width-h, height-v)
+	groupsList.KeyMap.Quit.SetKeys("q", "ctrl+c")
 	groupsList.Title = "Select Group Or Add New By Pressing 'a'"
 	if repo.Name != "" {
 		groupsList.Title = fmt.Sprintf("Select Group For Repo '%s' Or Add New By Pressing 'a'", repo.Name)
@@ -90,6 +95,10 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectedGroup = m.list.SelectedItem().(manifest.GroupFile).Manifest.Metadata.Name
 			return m, func() tea.Msg {
 				return switchToConfigureGroupMsg{groupName: m.selectedGroup}
+			}
+		case key.Matches(msg, m.keys.returnToMenu):
+			return m, func() tea.Msg {
+				return switchToMenuMsg{}
 			}
 		}
 

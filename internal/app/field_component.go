@@ -139,14 +139,6 @@ type FieldDoneMsg struct{}
 type FieldDoneUpMsg struct{}
 type FieldDoneDownMsg struct{}
 
-func GenerateRepoComponents(repos []domain.Repository) []FieldComponent {
-	var components []FieldComponent
-	for i, repo := range repos {
-		components = append(components, NewRepoComponent(repo, i))
-	}
-	return components
-}
-
 func GenerateComponentsByPaths(obj any, paths []string) []FieldComponent {
 	root := reflect.ValueOf(obj)
 	// unwrap pointer if necessary

@@ -2,8 +2,10 @@ package app
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
+	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -34,6 +36,74 @@ const (
 type Message struct {
 	Msg  string
 	Type MessageType
+}
+
+func GenerateRepoComponents(repos []domain.Repository) []FieldComponent {
+	var components []FieldComponent
+	for i, repo := range repos {
+		components = append(components, NewRepoComponent(repo, i))
+	}
+	return components
+}
+
+func GenerateRepoPreviewLines(obj any) []string {
+	var lines []string
+
+	val := reflect.ValueOf(obj)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+		value := val.Field(i)
+
+		// Parse `ui` tag and skip if no label
+		tag := field.Tag.Get("ui")
+		meta := parseTag(tag)
+		label := meta["label"]
+		if label == "" {
+			continue
+		}
+
+		// Skip complex types
+		kind := value.Kind()
+		if kind == reflect.Slice || kind == reflect.Map || kind == reflect.Struct {
+			continue
+		}
+
+		// Unwrap pointer if needed
+		if kind == reflect.Ptr {
+			if value.IsNil() {
+				// TODO: I think we should show only fields that are set
+				// lines = append(lines, fmt.Sprintf("%s: <nil>", label))
+				continue
+			}
+			value = value.Elem()
+			kind = value.Kind()
+		}
+
+		// Format the value
+		var str string
+		switch kind {
+		case reflect.String:
+			// TODO: same here, we should show only if set
+			if value.String() != "" {
+				str = value.String()
+			}
+		case reflect.Bool:
+			str = boolToStr(value.Bool())
+		default:
+			str = fmt.Sprintf("%v", value.Interface())
+		}
+
+		if str != "" {
+			lines = append(lines, fmt.Sprintf("%s: %s", label, str))
+		}
+	}
+
+	return lines
 }
 
 // TODO: consider moving this to a separate package or file
@@ -183,11 +253,9 @@ func (m *ConfigureGroupModel) handlePrevField() (tea.Model, tea.Cmd) {
 }
 
 func (m *ConfigureGroupModel) switchTab(delta int) (tea.Model, tea.Cmd) {
-	newTab := m.activeTab + delta
-	if newTab >= 0 && newTab < len(m.tabs) {
-		m.activeTab = newTab
-		m.focusedIndex = 0
-	}
+	newTab := (m.activeTab + delta + len(m.tabs)) % len(m.tabs)
+	m.activeTab = newTab
+	m.focusedIndex = 0
 	return m, nil
 }
 
@@ -248,6 +316,10 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				return m, nil
+			case "esc":
+				return m, func() tea.Msg {
+					return switchToMenuMsg{}
+				}
 			case "ctrl+s":
 				// Save the group configuration
 				if err := m.loader.SaveGroupFile(m.group); err != nil {
@@ -296,33 +368,41 @@ func (m ConfigureGroupModel) View() string {
 
 	return m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + statusBar + "\n" + message
 }
-
 func (m ConfigureGroupModel) renderActiveTabContent() []string {
 	var lines []string
-	if m.activeTab < len(m.fieldComponents) && m.fieldComponents[m.activeTab] != nil {
-		for _, c := range m.fieldComponents[m.activeTab] {
-			lines = append(lines, c.View())
-		}
-		// TODO: refactor this to get rid of the hardcoded "Repositories" tab
-	} else if m.tabs[m.activeTab].TabName == "Repositories" {
-		components := m.fieldComponents[m.activeTab]
 
-		// set focus state before rendering
+	components := m.fieldComponents[m.activeTab]
+
+	if m.tabs[m.activeTab].TabName == "Repositories" {
+		for _, comp := range components {
+			lines = append(lines, comp.View())
+
+			if comp.IsFocused() {
+				if repoComp, ok := comp.(*RepoComponent); ok {
+					previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.repo), "\n")
+					lines = append(lines, repoPreviewStyle.Render(previewBlock))
+				}
+			}
+		}
+	} else {
 		for _, comp := range components {
 			lines = append(lines, comp.View())
 		}
-
 	}
+
 	return lines
 }
-
 func (m ConfigureGroupModel) renderStatusBar() string {
 	var statusBar strings.Builder
 	var style lipgloss.Style
 
 	switch m.mode {
 	case ModeNavigation:
-		statusBar.WriteString("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
+		if m.tabs[m.activeTab].TabName == "Repositories" {
+			statusBar.WriteString("[REPO Mode] arrow keys to navigate, Enter to edit, Ctrl+s to save, q to quit")
+		} else {
+			statusBar.WriteString("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
+		}
 		style = configureGroupStatusStyleNavigation
 	case ModeEditing:
 		statusBar.WriteString("[EDT Mode] Press Esc or Enter to finish")
@@ -360,15 +440,3 @@ func (m ConfigureGroupModel) renderTabs() string {
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
 }
-
-func ifEmpty(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}
-
-var (
-	inactiveTabStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).BorderForeground(lipgloss.Color("240"))
-	activeTabStyle   = inactiveTabStyle.BorderBottom(false).Bold(true)
-)
