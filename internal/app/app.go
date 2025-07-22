@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/artemlive/gh-crossplane/debug"
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/configuregroup"
@@ -94,6 +95,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	}
+	debug.Log.Printf("Delegating message: %T", msg)
 	// Delegate message to current screen
 	newScreen, cmd := m.curScreen.Update(msg)
 	m.curScreen = newScreen
@@ -102,8 +104,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.curScreen == nil {
+		debug.Log.Println("No current screen to render")
 		return "No screen to display"
 	}
 
+	debug.Log.Printf("Rendering screen: %T", m.curScreen)
 	return m.curScreen.View()
 }

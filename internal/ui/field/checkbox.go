@@ -62,8 +62,9 @@ func (c *CheckboxComponent) View() string {
 	return fmt.Sprintf("%s [%s] %s", cursor, checked, c.Label)
 }
 
-func (c *CheckboxComponent) Focus() {
+func (c *CheckboxComponent) Focus() tea.Cmd {
 	c.Focused = true
+	return nil
 }
 
 func (c *CheckboxComponent) Blur() {

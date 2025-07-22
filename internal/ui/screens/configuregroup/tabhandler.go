@@ -1,0 +1,212 @@
+package configuregroup
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/artemlive/gh-crossplane/internal/ui/field"
+	"github.com/artemlive/gh-crossplane/internal/ui/screens/configurerepo"
+	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
+	"github.com/artemlive/gh-crossplane/internal/ui/style"
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+type TabHandler interface {
+	Render(m *ConfigureGroupModel) []string
+	Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd)
+	StatusBarText(m *ConfigureGroupModel) string
+}
+
+type GenericTabHandler struct{}
+
+func (h GenericTabHandler) Render(m *ConfigureGroupModel) []string {
+	var lines []string
+
+	components := m.fieldComponents[m.activeTab]
+	for _, comp := range components {
+		lines = append(lines, comp.View())
+	}
+	return lines
+
+}
+
+func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+
+	case field.FieldDoneMsg:
+		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
+			comps[m.focusedIndex].Blur()
+		}
+		m.mode = ui.ModeNavigation
+		return m, nil
+
+	case field.FieldDoneUpMsg:
+		return m.handlePrevField()
+
+	case field.FieldDoneDownMsg:
+		return m.handleNextField()
+
+	case tea.KeyMsg:
+		switch m.mode {
+		case ui.ModeNavigation:
+			switch msg.String() {
+			case "tab", "down", "j":
+				return m.handleNextField()
+			case "shift+tab", "up", "k":
+				return m.handlePrevField()
+			case "left", "h":
+				return m.switchTab(-1)
+			case "right", "l":
+				return m.switchTab(1)
+			case "enter", "i":
+				var cmd tea.Cmd
+				if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
+					// Blur the old focused field
+					comps[m.focusedIndex].Blur()
+
+					// Focus the current one
+					cmd = comps[m.focusedIndex].Focus()
+					m.mode = ui.ModeEditing
+				}
+				return m, cmd
+			case "ctrl+s":
+				if err := m.loader.SaveGroupFile(m.group); err != nil {
+					m.message = ui.ErrorMessage(fmt.Sprintf("Error saving group '%s': %s", m.group.Title(), err.Error()))
+				} else {
+					m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
+				}
+				return m, nil
+			case "esc":
+				return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
+			case "q":
+				return m, tea.Quit
+			}
+
+		case ui.ModeEditing:
+			if msg.String() == "esc" {
+				return m.Update(field.FieldDoneMsg{})
+			}
+		}
+	}
+	cmd := tea.Cmd(nil)
+	for i, comp := range m.fieldComponents[m.activeTab] {
+		if i == m.focusedIndex {
+			newComp, c := comp.Update(msg, m.mode)
+			m.fieldComponents[m.activeTab][i] = newComp
+			cmd = c
+		} else {
+			// Always render non-focused fields in NAV mode
+			newComp, _ := comp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{}}, ui.ModeNavigation)
+			m.fieldComponents[m.activeTab][i] = newComp
+		}
+	}
+	return m, cmd
+}
+
+func (h GenericTabHandler) StatusBarText(m *ConfigureGroupModel) string {
+	switch m.mode {
+	case ui.ModeNavigation:
+		return style.ConfigureGroupStatusStyleNavigation.Render("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
+	case ui.ModeEditing:
+		return style.ConfigureGroupStatusStyleEditing.Render("[EDT Mode] Press Esc or Enter to finish")
+	}
+	return ""
+}
+
+type RepositoryTabHandler struct{}
+
+func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
+	if m.repoModal != nil {
+		// Modal takes over render it exclusively
+		return []string{m.repoModal.View()}
+	}
+
+	var lines []string
+
+	// Render the repository components
+	components := m.fieldComponents[m.activeTab]
+	for _, comp := range components {
+		lines = append(lines, comp.View())
+
+		if comp.IsFocused() {
+			if repoComp, ok := comp.(*field.RepoComponent); ok {
+				previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.Repo()), "\n")
+				lines = append(lines, style.RepoPreviewStyle.Render(previewBlock))
+			}
+		}
+	}
+
+	return lines
+}
+
+func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.isModalOpen() {
+		newModel, cmd := m.repoModal.Update(msg)
+		m.repoModal = newModel
+		return m, cmd
+	}
+
+	switch msg := msg.(type) {
+	case ui.SwitchToGroupMsg:
+		m.repoModal = nil
+		return m, nil
+	case field.FieldDoneMsg:
+		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
+			comps[m.focusedIndex].Blur()
+		}
+		m.mode = ui.ModeNavigation
+		return m, nil
+
+	case field.FieldDoneUpMsg:
+		return m.handlePrevField()
+
+	case field.FieldDoneDownMsg:
+		return m.handleNextField()
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			return m.handlePrevField()
+		case "down", "j":
+			return m.handleNextField()
+		case "left", "h":
+			return m.switchTab(-1)
+		case "right", "l":
+			return m.switchTab(1)
+		case "ctrl+s":
+			err := m.loader.SaveGroupFile(m.group)
+			if err != nil {
+				m.message = ui.ErrorMessage("Error saving group: " + err.Error())
+			} else {
+				m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
+			}
+			return m, nil
+		case "enter":
+			focused := m.fieldComponents[m.activeTab][m.focusedIndex]
+			repoComp, ok := focused.(*field.RepoComponent)
+			if !ok {
+				m.message = ui.WarningMessage("Focused component is not a repository component")
+				return m, nil
+			}
+			m.repoModal = configurerepo.New(repoComp.Repo())
+
+		case "esc":
+			return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
+		case "q":
+			return m, tea.Quit
+		}
+	}
+
+	// Forward input to focused component
+	if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 && m.focusedIndex < len(comps) {
+		newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
+		m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (h RepositoryTabHandler) StatusBarText(m *ConfigureGroupModel) string {
+	return "[REPO Mode] Up/Down to navigate, Ctrl+s to save, q to quit"
+}

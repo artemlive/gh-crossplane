@@ -1,6 +1,10 @@
 package style
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
 	AppStyle = lipgloss.NewStyle().Padding(1, 2)
@@ -18,4 +22,48 @@ var (
 	ActiveTabStyle   = InactiveTabStyle.BorderBottom(false).Bold(true)
 
 	RepoPreviewStyle = lipgloss.NewStyle().Padding(0, 0).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#4A32DE")).MarginLeft(1)
+
+	ModalBoxStyle = lipgloss.NewStyle().
+			Padding(1, 2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("63")).
+			Background(lipgloss.Color("234")).
+			Align(lipgloss.Center)
 )
+
+//	func StyleModalBox(content string, width, height int) string {
+//		box := ModalBoxStyle.Render(content)
+//
+//		// Center the modal in the available space
+//		return lipgloss.Place(width, height,
+//			lipgloss.Center, lipgloss.Center,
+//			box,
+//		)
+//	}
+func StyleModalBox(content string, termWidth, termHeight int) string {
+	const modalWidth = 60
+	const modalHeight = 15
+
+	lines := strings.Split(content, "\n")
+
+	// pad lines to modalWidth manually
+	for i, line := range lines {
+		lines[i] = lipgloss.NewStyle().
+			Width(modalWidth).
+			Render(line)
+	}
+
+	// pad vertical if not enough lines
+	for len(lines) < modalHeight {
+		lines = append(lines, strings.Repeat(" ", modalWidth))
+	}
+
+	contentBlock := lipgloss.JoinVertical(lipgloss.Top, lines[:modalHeight]...)
+
+	box := ModalBoxStyle.
+		Width(modalWidth).
+		Height(modalHeight).
+		Render(contentBlock)
+
+	return lipgloss.Place(termWidth, termHeight, lipgloss.Center, lipgloss.Center, box)
+}

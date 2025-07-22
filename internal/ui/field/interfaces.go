@@ -10,7 +10,7 @@ type FieldComponent interface {
 	Init() tea.Cmd
 	Update(tea.Msg, ui.FocusMode) (FieldComponent, tea.Cmd)
 	View() string
-	Focus()
+	Focus() tea.Cmd
 	Blur()
 	IsFocused() bool
 }

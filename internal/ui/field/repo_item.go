@@ -33,8 +33,12 @@ func (r *RepoComponent) View() string {
 	return prefix + name
 }
 
-func (r *RepoComponent) Focus() { r.focused = true }
-func (r *RepoComponent) Blur()  { r.focused = false }
+func (r *RepoComponent) Focus() tea.Cmd {
+	r.focused = true
+	return nil
+}
+
+func (r *RepoComponent) Blur() { r.focused = false }
 func (r *RepoComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldComponent, tea.Cmd) {
 	return r, nil
 }

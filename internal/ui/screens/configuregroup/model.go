@@ -15,191 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type GenericTabHandler struct{}
-
-type TabHandler interface {
-	Render(m *ConfigureGroupModel) []string
-	Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd)
-	StatusBarText(m *ConfigureGroupModel) string
-}
-
-func (h GenericTabHandler) Render(m *ConfigureGroupModel) []string {
-	var lines []string
-
-	components := m.fieldComponents[m.activeTab]
-	for _, comp := range components {
-		lines = append(lines, comp.View())
-	}
-	return lines
-
-}
-
-func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-
-	case field.FieldDoneMsg:
-		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
-			comps[m.focusedIndex].Blur()
-		}
-		m.mode = ui.ModeNavigation
-		return m, nil
-
-	case field.FieldDoneUpMsg:
-		return m.handlePrevField()
-
-	case field.FieldDoneDownMsg:
-		return m.handleNextField()
-
-	case tea.KeyMsg:
-		switch m.mode {
-		case ui.ModeNavigation:
-			switch msg.String() {
-			case "tab", "down", "j":
-				return m.handleNextField()
-			case "shift+tab", "up", "k":
-				return m.handlePrevField()
-			case "left", "h":
-				return m.switchTab(-1)
-			case "right", "l":
-				return m.switchTab(1)
-			case "enter", "i":
-				if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
-					comps[m.focusedIndex].Focus()
-					m.mode = ui.ModeEditing
-				}
-				return m, nil
-			case "ctrl+s":
-				if err := m.loader.SaveGroupFile(m.group); err != nil {
-					m.message = ui.ErrorMessage("Error saving group: " + err.Error())
-				} else {
-					m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
-				}
-				return m, nil
-			case "esc":
-				return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
-			case "q":
-				return m, tea.Quit
-			}
-
-		case ui.ModeEditing:
-			if msg.String() == "esc" {
-				return m.Update(field.FieldDoneMsg{})
-			}
-		}
-	}
-
-	// Pass input to focused field
-	if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 && m.focusedIndex < len(comps) {
-		newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
-		m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
-		return m, cmd
-	}
-
-	return m, nil
-}
-
-func (h GenericTabHandler) StatusBarText(m *ConfigureGroupModel) string {
-	switch m.mode {
-	case ui.ModeNavigation:
-		return style.ConfigureGroupStatusStyleNavigation.Render("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
-	case ui.ModeEditing:
-		return style.ConfigureGroupStatusStyleEditing.Render("[EDT Mode] Press Esc or Enter to finish")
-	}
-	return ""
-}
-
-type RepositoryTabHandler struct{}
-
-func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
-	var lines []string
-
-	// Render the repository components
-	components := m.fieldComponents[m.activeTab]
-	for _, comp := range components {
-		lines = append(lines, comp.View())
-
-		if comp.IsFocused() {
-			if repoComp, ok := comp.(*field.RepoComponent); ok {
-				previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.Repo()), "\n")
-				lines = append(lines, style.RepoPreviewStyle.Render(previewBlock))
-			}
-		}
-	}
-
-	return lines
-}
-
-func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case field.FieldDoneMsg:
-		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
-			comps[m.focusedIndex].Blur()
-		}
-		m.mode = ui.ModeNavigation
-		return m, nil
-
-	case field.FieldDoneUpMsg:
-		return m.handlePrevField()
-
-	case field.FieldDoneDownMsg:
-		return m.handleNextField()
-
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			return m.handlePrevField()
-		case "down", "j":
-			return m.handleNextField()
-		case "left", "h":
-			return m.switchTab(-1)
-		case "right", "l":
-			return m.switchTab(1)
-		case "ctrl+s":
-			err := m.loader.SaveGroupFile(m.group)
-			if err != nil {
-				m.message = ui.ErrorMessage("Error saving group: " + err.Error())
-			} else {
-				m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
-			}
-			return m, nil
-		case "esc":
-			return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
-		}
-	}
-
-	// Forward input to focused component
-	if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 && m.focusedIndex < len(comps) {
-		newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
-		m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
-		return m, cmd
-	}
-
-	return m, nil
-}
-
-func (h RepositoryTabHandler) StatusBarText(m *ConfigureGroupModel) string {
-	return "[REPO Mode] Up/Down to navigate, Ctrl+s to save, q to quit"
-}
-
-type FieldGroup struct {
-	TabName     string
-	FieldPaths  []string // Dot-separated, e.g., "Spec.Visibility"
-	GroupLevel  bool     // true = group, false = repo
-	Description string   // optional
-}
-
 type MessageType int
-
-const (
-	MessageTypeInfo MessageType = iota
-	MessageTypeError
-	MessageTypeWarning
-)
-
-type Message struct {
-	Msg  string
-	Type MessageType
-}
 
 func GenerateRepoComponents(repos []domain.Repository) []field.FieldComponent {
 	var components []field.FieldComponent
@@ -269,89 +85,12 @@ func GenerateRepoPreviewLines(obj any) []string {
 	return lines
 }
 
-// TODO: consider moving this to a separate package or file
-// this is a list of field groups that will be used to render the configuration UI
-var FieldGroups = []FieldGroup{
-	{
-		TabName: "Group: General",
-		FieldPaths: []string{
-			"Spec.Visibility",
-			"Spec.DefaultBranch",
-			"Spec.Topics",
-			"Spec.ArchiveOnDestroy",
-			"Spec.AutoInit",
-			"Spec.IsTemplate",
-			"Spec.ManagementPolicies",
-			"Spec.DeletionPolicy",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Group: Features",
-		FieldPaths: []string{
-			"Spec.HasIssues",
-			"Spec.HasDownloads",
-			"Spec.HasWiki",
-			"Spec.HasDiscussions",
-			"Spec.AllowAutoMerge",
-			"Spec.AllowSquashMerge",
-			"Spec.AllowMergeCommit",
-			"Spec.AllowRebaseMerge",
-			"Spec.AllowUpdateBranch",
-			"Spec.DeleteBranchOnMerge",
-			"Spec.VulnerabilityAlerts",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Group: Merge Messages",
-		FieldPaths: []string{
-			"Spec.MergeCommitMessage",
-			"Spec.MergeCommitTitle",
-			"Spec.SquashMergeCommitMessage",
-			"Spec.SquashMergeCommitTitle",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Group: Protections",
-		FieldPaths: []string{
-			"Spec.Protections",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Group: Security",
-		FieldPaths: []string{
-			"Spec.SecurityAndAnalysis",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Group: Autolinks",
-		FieldPaths: []string{
-			"Spec.AutolinkReferences",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Group: Permissions",
-		FieldPaths: []string{
-			"Spec.Permissions",
-		},
-		GroupLevel: true,
-	},
-	{
-		TabName: "Repositories",
-		FieldPaths: []string{
-			"Spec.Repositories",
-		},
-		GroupLevel: false,
-	},
+func (m *ConfigureGroupModel) isModalOpen() bool {
+	return m.repoModal != nil
 }
 
 type ConfigureGroupModel struct {
-	tabs            []FieldGroup
+	tabs            []field.FieldGroup
 	fieldComponents [][]field.FieldComponent // one slice per tab
 	activeTab       int
 	group           *manifest.GroupFile
@@ -365,11 +104,12 @@ type ConfigureGroupModel struct {
 	message ui.Message
 
 	tabHandlers []TabHandler
+	repoModal   tea.Model
 }
 
 func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.ManifestLoader, width, height int) ConfigureGroupModel {
 	m := ConfigureGroupModel{
-		tabs:         FieldGroups,
+		tabs:         field.FieldGroups,
 		activeTab:    0,
 		group:        group,
 		repoIndex:    0,
@@ -380,8 +120,8 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 	}
 
 	// initialize field components for each tab
-	m.tabHandlers = make([]TabHandler, len(FieldGroups))
-	for i, fg := range FieldGroups {
+	m.tabHandlers = make([]TabHandler, len(field.FieldGroups))
+	for i, fg := range field.FieldGroups {
 		if fg.GroupLevel {
 			components := field.GenerateComponentsByPaths(&group.Manifest, fg.FieldPaths)
 			m.fieldComponents = append(m.fieldComponents, components)
@@ -395,6 +135,11 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 }
 
 func (m ConfigureGroupModel) Init() tea.Cmd {
+	comps := m.fieldComponents[m.activeTab]
+	if len(comps) > 0 {
+		m.focusedIndex = 0
+		return comps[0].Focus()
+	}
 	return nil
 }
 
@@ -405,8 +150,7 @@ func (m *ConfigureGroupModel) handleNextField() (tea.Model, tea.Cmd) {
 	}
 	components[m.focusedIndex].Blur()
 	m.focusedIndex = (m.focusedIndex + 1) % len(components)
-	components[m.focusedIndex].Focus()
-	return m, nil
+	return m, components[m.focusedIndex].Focus()
 }
 
 func (m *ConfigureGroupModel) handlePrevField() (tea.Model, tea.Cmd) {
@@ -416,19 +160,26 @@ func (m *ConfigureGroupModel) handlePrevField() (tea.Model, tea.Cmd) {
 	}
 	components[m.focusedIndex].Blur()
 	m.focusedIndex = (m.focusedIndex - 1 + len(components)) % len(components)
-	components[m.focusedIndex].Focus()
-	return m, nil
+
+	return m, components[m.focusedIndex].Focus()
 }
 
 func (m *ConfigureGroupModel) switchTab(delta int) (tea.Model, tea.Cmd) {
-	newTab := (m.activeTab + delta + len(m.tabs)) % len(m.tabs)
-	m.activeTab = newTab
+	m.activeTab = (m.activeTab + delta + len(m.tabs)) % len(m.tabs)
+
 	if m.tabs[m.activeTab].TabName == "Repositories" {
 		// force repositories tab to be in navigation mode
 		m.mode = ui.ModeNavigation
 	}
+
+	comps := m.fieldComponents[m.activeTab]
 	m.focusedIndex = 0
-	return m, nil
+	var cmd tea.Cmd
+	if len(comps) > 0 {
+		cmd = comps[0].Focus()
+	}
+
+	return m, cmd
 }
 
 func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -458,16 +209,7 @@ func (m ConfigureGroupModel) renderMessage() string {
 		return ""
 	}
 
-	var styledMsg string
-	switch m.message.Type {
-	case ui.MessageTypeInfo:
-		styledMsg = style.InfoMessageStyle.Render("[Info] " + m.message.Msg)
-	case ui.MessageTypeError:
-		styledMsg = style.ErrorMessageStyle.Render("[Error] " + m.message.Msg)
-	case ui.MessageTypeWarning:
-		styledMsg = style.WarningMessageStyle.Render("[Warning] " + m.message.Msg)
-	}
-	return "\n\n" + styledMsg
+	return "\n\n" + ui.FormatMessage(m.message)
 }
 
 func (m ConfigureGroupModel) renderTabs() string {
