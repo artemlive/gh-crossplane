@@ -5,20 +5,13 @@ import (
 
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
+	"github.com/artemlive/gh-crossplane/internal/ui/screens/configuregroup"
+	"github.com/artemlive/gh-crossplane/internal/ui/screens/createrepo"
+	"github.com/artemlive/gh-crossplane/internal/ui/screens/menu"
+	"github.com/artemlive/gh-crossplane/internal/ui/screens/selectgroup"
+	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-type switchToMenuMsg struct{}
-type switchToCreateRepoMsg struct{}
-type switchToSelectGroupMsg struct {
-	repoName    string
-	description string
-}
-
-type switchToConfigureGroupMsg struct {
-	// maybe we could return the group object instead of just the name?
-	groupName string
-}
 
 type appState struct {
 	manifestLoader *manifest.ManifestLoader
@@ -32,7 +25,7 @@ type model struct {
 	curScreen tea.Model
 	state     appState
 
-	message Message
+	message ui.Message
 	width   int
 	height  int
 }
@@ -44,13 +37,13 @@ func NewAppModel(groupDir string) model {
 
 	return model{
 		state:     state,
-		curScreen: NewMenuModel(),
+		curScreen: menu.NewMenuModel(),
 	}
 }
 
 func switchToMenu() tea.Cmd {
 	return func() tea.Msg {
-		return switchToMenuMsg{}
+		return ui.SwitchToMenuMsg{}
 	}
 }
 
@@ -60,34 +53,34 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case switchToMenuMsg:
-		menu := NewMenuModel()
+	case ui.SwitchToMenuMsg:
+		menu := menu.NewMenuModel()
 		m.curScreen = menu
 		return m, menu.Init()
-	case switchToCreateRepoMsg:
-		createRepoModel := NewCreateRepoModel()
+	case ui.SwitchToCreateRepoMsg:
+		createRepoModel := createrepo.NewCreateRepoModel()
 		m.curScreen = createRepoModel
 		return m, createRepoModel.Init()
-	case switchToSelectGroupMsg:
+	case ui.SwitchToSelectGroupMsg:
 		// pass the width and height to the selectGroup model
 		// because it needs to know the size of the terminal
 		// since the window size message wasn't sent there on initialization
 		repo := domain.Repository{
-			Name:        msg.repoName,
-			Description: msg.description,
+			Name:        msg.RepoName,
+			Description: msg.Description,
 		}
-		selectGroupModel := NewSelectGroupModel(m.state.GetManifestLoader().Groups(), repo, m.width, m.height)
+		selectGroupModel := selectgroup.NewSelectGroupModel(m.state.GetManifestLoader().Groups(), repo, m.width, m.height)
 		m.curScreen = selectGroupModel
 		return m, selectGroupModel.Init()
-	case switchToConfigureGroupMsg:
-		groupName := msg.groupName
+	case ui.SwitchToConfigureGroupMsg:
+		groupName := msg.GroupName
 		group := m.state.GetManifestLoader().GetGroup(groupName)
 		if group == nil {
 			// TODO: render error message on the screen
-			m.message = ErrorMessage(fmt.Sprintf("Group '%s' not found", groupName))
+			m.message = ui.ErrorMessage(fmt.Sprintf("Group '%s' not found", groupName))
 			return m, nil
 		}
-		configureGroupModel := NewConfigureGroupModel(group, m.state.manifestLoader, m.width, m.height)
+		configureGroupModel := configuregroup.NewConfigureGroupModel(group, m.state.manifestLoader, m.width, m.height)
 		m.curScreen = configureGroupModel
 		return m, configureGroupModel.Init()
 	case tea.KeyMsg:

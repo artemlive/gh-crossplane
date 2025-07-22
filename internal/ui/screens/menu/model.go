@@ -1,6 +1,8 @@
-package app
+package menu
 
 import (
+	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
+	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -51,9 +53,9 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			switch menuOrder[m.cursor] {
 			case ChoiceCreateRepo:
-				return m, func() tea.Msg { return switchToCreateRepoMsg{} }
+				return m, func() tea.Msg { return ui.SwitchToCreateRepoMsg{} }
 			case ChoiceConfigureRepo:
-				return m, func() tea.Msg { return switchToSelectGroupMsg{} }
+				return m, func() tea.Msg { return ui.SwitchToSelectGroupMsg{} }
 			}
 			return m, nil
 		case "q":
@@ -68,8 +70,8 @@ func (m MenuModel) View() string {
 	for i, choice := range menuOrder {
 		cursor := " "
 		if m.cursor == i {
-			cursor = mainMenuCurosrStyle.Render(">")
-			s += cursor + " " + mainMenuCurosrStyle.Render(menuLabels[choice]) + "\n"
+			cursor = style.MainMenuCurosrStyle.Render(">")
+			s += cursor + " " + style.MainMenuCurosrStyle.Render(menuLabels[choice]) + "\n"
 		} else {
 			s += cursor + " " + menuLabels[choice] + "\n"
 		}

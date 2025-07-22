@@ -1,4 +1,4 @@
-package app
+package configuregroup
 
 import (
 	"fmt"
@@ -7,17 +7,21 @@ import (
 
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
+	"github.com/artemlive/gh-crossplane/internal/ui/field"
+	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
+	"github.com/artemlive/gh-crossplane/internal/ui/style"
+	"github.com/artemlive/gh-crossplane/internal/util"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+type GenericTabHandler struct{}
 
 type TabHandler interface {
 	Render(m *ConfigureGroupModel) []string
 	Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd)
 	StatusBarText(m *ConfigureGroupModel) string
 }
-
-type GenericTabHandler struct{}
 
 func (h GenericTabHandler) Render(m *ConfigureGroupModel) []string {
 	var lines []string
@@ -33,22 +37,22 @@ func (h GenericTabHandler) Render(m *ConfigureGroupModel) []string {
 func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
-	case FieldDoneMsg:
+	case field.FieldDoneMsg:
 		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
 			comps[m.focusedIndex].Blur()
 		}
-		m.mode = ModeNavigation
+		m.mode = ui.ModeNavigation
 		return m, nil
 
-	case FieldDoneUpMsg:
+	case field.FieldDoneUpMsg:
 		return m.handlePrevField()
 
-	case FieldDoneDownMsg:
+	case field.FieldDoneDownMsg:
 		return m.handleNextField()
 
 	case tea.KeyMsg:
 		switch m.mode {
-		case ModeNavigation:
+		case ui.ModeNavigation:
 			switch msg.String() {
 			case "tab", "down", "j":
 				return m.handleNextField()
@@ -61,25 +65,25 @@ func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Mode
 			case "enter", "i":
 				if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
 					comps[m.focusedIndex].Focus()
-					m.mode = ModeEditing
+					m.mode = ui.ModeEditing
 				}
 				return m, nil
 			case "ctrl+s":
 				if err := m.loader.SaveGroupFile(m.group); err != nil {
-					m.message = ErrorMessage("Error saving group: " + err.Error())
+					m.message = ui.ErrorMessage("Error saving group: " + err.Error())
 				} else {
-					m.message = InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
+					m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
 				}
 				return m, nil
 			case "esc":
-				return m, func() tea.Msg { return switchToMenuMsg{} }
+				return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
 			case "q":
 				return m, tea.Quit
 			}
 
-		case ModeEditing:
+		case ui.ModeEditing:
 			if msg.String() == "esc" {
-				return m.Update(FieldDoneMsg{})
+				return m.Update(field.FieldDoneMsg{})
 			}
 		}
 	}
@@ -96,10 +100,10 @@ func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Mode
 
 func (h GenericTabHandler) StatusBarText(m *ConfigureGroupModel) string {
 	switch m.mode {
-	case ModeNavigation:
-		return configureGroupStatusStyleNavigation.Render("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
-	case ModeEditing:
-		return configureGroupStatusStyleEditing.Render("[EDT Mode] Press Esc or Enter to finish")
+	case ui.ModeNavigation:
+		return style.ConfigureGroupStatusStyleNavigation.Render("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
+	case ui.ModeEditing:
+		return style.ConfigureGroupStatusStyleEditing.Render("[EDT Mode] Press Esc or Enter to finish")
 	}
 	return ""
 }
@@ -115,9 +119,9 @@ func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
 		lines = append(lines, comp.View())
 
 		if comp.IsFocused() {
-			if repoComp, ok := comp.(*RepoComponent); ok {
-				previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.repo), "\n")
-				lines = append(lines, repoPreviewStyle.Render(previewBlock))
+			if repoComp, ok := comp.(*field.RepoComponent); ok {
+				previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.Repo()), "\n")
+				lines = append(lines, style.RepoPreviewStyle.Render(previewBlock))
 			}
 		}
 	}
@@ -127,17 +131,17 @@ func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
 
 func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case FieldDoneMsg:
+	case field.FieldDoneMsg:
 		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
 			comps[m.focusedIndex].Blur()
 		}
-		m.mode = ModeNavigation
+		m.mode = ui.ModeNavigation
 		return m, nil
 
-	case FieldDoneUpMsg:
+	case field.FieldDoneUpMsg:
 		return m.handlePrevField()
 
-	case FieldDoneDownMsg:
+	case field.FieldDoneDownMsg:
 		return m.handleNextField()
 
 	case tea.KeyMsg:
@@ -153,13 +157,13 @@ func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.
 		case "ctrl+s":
 			err := m.loader.SaveGroupFile(m.group)
 			if err != nil {
-				m.message = ErrorMessage("Error saving group: " + err.Error())
+				m.message = ui.ErrorMessage("Error saving group: " + err.Error())
 			} else {
-				m.message = InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
+				m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
 			}
 			return m, nil
 		case "esc":
-			return m, func() tea.Msg { return switchToMenuMsg{} }
+			return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
 		}
 	}
 
@@ -184,13 +188,6 @@ type FieldGroup struct {
 	Description string   // optional
 }
 
-type FocusMode int
-
-const (
-	ModeNavigation FocusMode = iota // navigating between fields
-	ModeEditing                     // editing a field
-)
-
 type MessageType int
 
 const (
@@ -204,10 +201,10 @@ type Message struct {
 	Type MessageType
 }
 
-func GenerateRepoComponents(repos []domain.Repository) []FieldComponent {
-	var components []FieldComponent
+func GenerateRepoComponents(repos []domain.Repository) []field.FieldComponent {
+	var components []field.FieldComponent
 	for i, repo := range repos {
-		components = append(components, NewRepoComponent(repo, i))
+		components = append(components, field.NewRepoComponent(repo, i))
 	}
 	return components
 }
@@ -227,7 +224,7 @@ func GenerateRepoPreviewLines(obj any) []string {
 
 		// Parse `ui` tag and skip if no label
 		tag := field.Tag.Get("ui")
-		meta := parseTag(tag)
+		meta := util.ParseTag(tag)
 		label := meta["label"]
 		if label == "" {
 			continue
@@ -259,7 +256,7 @@ func GenerateRepoPreviewLines(obj any) []string {
 				str = value.String()
 			}
 		case reflect.Bool:
-			str = boolToStr(value.Bool())
+			str = util.BoolToStr(value.Bool())
 		default:
 			str = fmt.Sprintf("%v", value.Interface())
 		}
@@ -355,7 +352,7 @@ var FieldGroups = []FieldGroup{
 
 type ConfigureGroupModel struct {
 	tabs            []FieldGroup
-	fieldComponents [][]FieldComponent // one slice per tab
+	fieldComponents [][]field.FieldComponent // one slice per tab
 	activeTab       int
 	group           *manifest.GroupFile
 	repoIndex       int // which repo is selected in "Repositories" tab
@@ -363,9 +360,9 @@ type ConfigureGroupModel struct {
 	height          int
 	focusedIndex    int
 
-	mode    FocusMode // current focus mode, either navigation or editing
+	mode    ui.FocusMode // current focus mode, either navigation or editing
 	loader  *manifest.ManifestLoader
-	message Message
+	message ui.Message
 
 	tabHandlers []TabHandler
 }
@@ -386,7 +383,7 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 	m.tabHandlers = make([]TabHandler, len(FieldGroups))
 	for i, fg := range FieldGroups {
 		if fg.GroupLevel {
-			components := GenerateComponentsByPaths(&group.Manifest, fg.FieldPaths)
+			components := field.GenerateComponentsByPaths(&group.Manifest, fg.FieldPaths)
 			m.fieldComponents = append(m.fieldComponents, components)
 			m.tabHandlers[i] = &GenericTabHandler{}
 		} else {
@@ -428,7 +425,7 @@ func (m *ConfigureGroupModel) switchTab(delta int) (tea.Model, tea.Cmd) {
 	m.activeTab = newTab
 	if m.tabs[m.activeTab].TabName == "Repositories" {
 		// force repositories tab to be in navigation mode
-		m.mode = ModeNavigation
+		m.mode = ui.ModeNavigation
 	}
 	m.focusedIndex = 0
 	return m, nil
@@ -463,12 +460,12 @@ func (m ConfigureGroupModel) renderMessage() string {
 
 	var styledMsg string
 	switch m.message.Type {
-	case MessageTypeInfo:
-		styledMsg = infoMessageStyle.Render("[Info] " + m.message.Msg)
-	case MessageTypeError:
-		styledMsg = errorMessageStyle.Render("[Error] " + m.message.Msg)
-	case MessageTypeWarning:
-		styledMsg = warningMessageStyle.Render("[Warning] " + m.message.Msg)
+	case ui.MessageTypeInfo:
+		styledMsg = style.InfoMessageStyle.Render("[Info] " + m.message.Msg)
+	case ui.MessageTypeError:
+		styledMsg = style.ErrorMessageStyle.Render("[Error] " + m.message.Msg)
+	case ui.MessageTypeWarning:
+		styledMsg = style.WarningMessageStyle.Render("[Warning] " + m.message.Msg)
 	}
 	return "\n\n" + styledMsg
 }
@@ -476,11 +473,11 @@ func (m ConfigureGroupModel) renderMessage() string {
 func (m ConfigureGroupModel) renderTabs() string {
 	var rendered []string
 	for i, tab := range m.tabs {
-		style := inactiveTabStyle
+		curStyle := style.InactiveTabStyle
 		if i == m.activeTab {
-			style = activeTabStyle
+			curStyle = style.ActiveTabStyle
 		}
-		rendered = append(rendered, style.Render(tab.TabName))
+		rendered = append(rendered, curStyle.Render(tab.TabName))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
 }

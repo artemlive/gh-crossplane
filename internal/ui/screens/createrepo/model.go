@@ -1,8 +1,10 @@
-package app
+package createrepo
 
 import (
 	"fmt"
 
+	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
+	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -67,9 +69,9 @@ func (m CreateRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = StepDone
 				m.input.SetValue("")
 				return m, func() tea.Msg {
-					return switchToSelectGroupMsg{
-						repoName:    m.repoName,
-						description: m.description,
+					return ui.SwitchToSelectGroupMsg{
+						RepoName:    m.repoName,
+						Description: m.description,
 					}
 				}
 			}
@@ -97,7 +99,7 @@ func (m CreateRepoModel) View() string {
 
 	information := ""
 	if m.message != "" {
-		information = fmt.Sprintf("\n\n%s", infoMessageStyle.Render(m.message))
+		information = fmt.Sprintf("\n\n%s", style.InfoMessageStyle.Render(m.message))
 	}
 
 	return fmt.Sprintf("%s\n%s\n%s", prompt, m.input.View(), information)

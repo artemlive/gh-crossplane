@@ -1,10 +1,12 @@
-package app
+package selectgroup
 
 import (
 	"fmt"
 
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
+	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
+	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -55,7 +57,7 @@ func NewSelectGroupModel(groups []manifest.GroupFile, repo domain.Repository, wi
 	// we need this to get the frame size
 	// to adjust the size to fit the terminal
 	// same as we do in the window size message handler
-	h, v := appStyle.GetFrameSize()
+	h, v := style.AppStyle.GetFrameSize()
 	groupsList := list.New(listItems, list.NewDefaultDelegate(), width-h, height-v)
 	groupsList.KeyMap.Quit.SetKeys("q", "ctrl+c")
 	groupsList.Title = "Select Group Or Add New By Pressing 'a'"
@@ -81,7 +83,7 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		h, v := appStyle.GetFrameSize()
+		h, v := style.AppStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 	case tea.KeyMsg:
 		if m.list.FilterState() == list.Filtering {
@@ -94,11 +96,11 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.selectedGroup = m.list.SelectedItem().(manifest.GroupFile).Manifest.Metadata.Name
 			return m, func() tea.Msg {
-				return switchToConfigureGroupMsg{groupName: m.selectedGroup}
+				return ui.SwitchToConfigureGroupMsg{GroupName: m.selectedGroup}
 			}
 		case key.Matches(msg, m.keys.returnToMenu):
 			return m, func() tea.Msg {
-				return switchToMenuMsg{}
+				return ui.SwitchToMenuMsg{}
 			}
 		}
 
@@ -112,5 +114,5 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m SelectGroupModel) View() string {
-	return appStyle.Render(m.list.View())
+	return style.AppStyle.Render(m.list.View())
 }
