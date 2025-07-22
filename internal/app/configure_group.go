@@ -11,6 +11,172 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type TabHandler interface {
+	Render(m *ConfigureGroupModel) []string
+	Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd)
+	StatusBarText(m *ConfigureGroupModel) string
+}
+
+type GenericTabHandler struct{}
+
+func (h GenericTabHandler) Render(m *ConfigureGroupModel) []string {
+	var lines []string
+
+	components := m.fieldComponents[m.activeTab]
+	for _, comp := range components {
+		lines = append(lines, comp.View())
+	}
+	return lines
+
+}
+
+func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+
+	case FieldDoneMsg:
+		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
+			comps[m.focusedIndex].Blur()
+		}
+		m.mode = ModeNavigation
+		return m, nil
+
+	case FieldDoneUpMsg:
+		return m.handlePrevField()
+
+	case FieldDoneDownMsg:
+		return m.handleNextField()
+
+	case tea.KeyMsg:
+		switch m.mode {
+		case ModeNavigation:
+			switch msg.String() {
+			case "tab", "down", "j":
+				return m.handleNextField()
+			case "shift+tab", "up", "k":
+				return m.handlePrevField()
+			case "left", "h":
+				return m.switchTab(-1)
+			case "right", "l":
+				return m.switchTab(1)
+			case "enter", "i":
+				if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
+					comps[m.focusedIndex].Focus()
+					m.mode = ModeEditing
+				}
+				return m, nil
+			case "ctrl+s":
+				if err := m.loader.SaveGroupFile(m.group); err != nil {
+					m.message = ErrorMessage("Error saving group: " + err.Error())
+				} else {
+					m.message = InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
+				}
+				return m, nil
+			case "esc":
+				return m, func() tea.Msg { return switchToMenuMsg{} }
+			case "q":
+				return m, tea.Quit
+			}
+
+		case ModeEditing:
+			if msg.String() == "esc" {
+				return m.Update(FieldDoneMsg{})
+			}
+		}
+	}
+
+	// Pass input to focused field
+	if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 && m.focusedIndex < len(comps) {
+		newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
+		m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (h GenericTabHandler) StatusBarText(m *ConfigureGroupModel) string {
+	switch m.mode {
+	case ModeNavigation:
+		return configureGroupStatusStyleNavigation.Render("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
+	case ModeEditing:
+		return configureGroupStatusStyleEditing.Render("[EDT Mode] Press Esc or Enter to finish")
+	}
+	return ""
+}
+
+type RepositoryTabHandler struct{}
+
+func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
+	var lines []string
+
+	// Render the repository components
+	components := m.fieldComponents[m.activeTab]
+	for _, comp := range components {
+		lines = append(lines, comp.View())
+
+		if comp.IsFocused() {
+			if repoComp, ok := comp.(*RepoComponent); ok {
+				previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.repo), "\n")
+				lines = append(lines, repoPreviewStyle.Render(previewBlock))
+			}
+		}
+	}
+
+	return lines
+}
+
+func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case FieldDoneMsg:
+		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
+			comps[m.focusedIndex].Blur()
+		}
+		m.mode = ModeNavigation
+		return m, nil
+
+	case FieldDoneUpMsg:
+		return m.handlePrevField()
+
+	case FieldDoneDownMsg:
+		return m.handleNextField()
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			return m.handlePrevField()
+		case "down", "j":
+			return m.handleNextField()
+		case "left", "h":
+			return m.switchTab(-1)
+		case "right", "l":
+			return m.switchTab(1)
+		case "ctrl+s":
+			err := m.loader.SaveGroupFile(m.group)
+			if err != nil {
+				m.message = ErrorMessage("Error saving group: " + err.Error())
+			} else {
+				m.message = InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
+			}
+			return m, nil
+		case "esc":
+			return m, func() tea.Msg { return switchToMenuMsg{} }
+		}
+	}
+
+	// Forward input to focused component
+	if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 && m.focusedIndex < len(comps) {
+		newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
+		m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (h RepositoryTabHandler) StatusBarText(m *ConfigureGroupModel) string {
+	return "[REPO Mode] Up/Down to navigate, Ctrl+s to save, q to quit"
+}
+
 type FieldGroup struct {
 	TabName     string
 	FieldPaths  []string // Dot-separated, e.g., "Spec.Visibility"
@@ -200,6 +366,8 @@ type ConfigureGroupModel struct {
 	mode    FocusMode // current focus mode, either navigation or editing
 	loader  *manifest.ManifestLoader
 	message Message
+
+	tabHandlers []TabHandler
 }
 
 func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.ManifestLoader, width, height int) ConfigureGroupModel {
@@ -215,12 +383,15 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 	}
 
 	// initialize field components for each tab
-	for _, fg := range FieldGroups {
+	m.tabHandlers = make([]TabHandler, len(FieldGroups))
+	for i, fg := range FieldGroups {
 		if fg.GroupLevel {
 			components := GenerateComponentsByPaths(&group.Manifest, fg.FieldPaths)
 			m.fieldComponents = append(m.fieldComponents, components)
+			m.tabHandlers[i] = &GenericTabHandler{}
 		} else {
 			m.fieldComponents = append(m.fieldComponents, GenerateRepoComponents(group.Manifest.Spec.Repositories))
+			m.tabHandlers[i] = &RepositoryTabHandler{}
 		}
 	}
 	return m
@@ -255,161 +426,34 @@ func (m *ConfigureGroupModel) handlePrevField() (tea.Model, tea.Cmd) {
 func (m *ConfigureGroupModel) switchTab(delta int) (tea.Model, tea.Cmd) {
 	newTab := (m.activeTab + delta + len(m.tabs)) % len(m.tabs)
 	m.activeTab = newTab
+	if m.tabs[m.activeTab].TabName == "Repositories" {
+		// force repositories tab to be in navigation mode
+		m.mode = ModeNavigation
+	}
 	m.focusedIndex = 0
 	return m, nil
 }
 
 func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		return m, nil
-
-	case FieldDoneMsg:
-		// Leave editing mode
-		if m.activeTab < len(m.fieldComponents) {
-			comps := m.fieldComponents[m.activeTab]
-			if len(comps) > 0 {
-				comps[m.focusedIndex].Blur()
-			}
-		}
-		m.mode = ModeNavigation
-		return m, nil
-	// if the control is in editing mode but signalizes
-	// that we should go to the next/previous field
-	case FieldDoneUpMsg:
-		m.handlePrevField()
-		return m, nil
-	case FieldDoneDownMsg:
-		m.handleNextField()
-		return m, nil
-
-	case tea.KeyMsg:
-		m.message = Message{} // Clear any previous message
-
-		switch m.mode {
-		case ModeNavigation:
-			switch msg.String() {
-			case "ctrl+c", "q":
-				return m, tea.Quit
-
-			case "tab", "down", "j":
-				return m.handleNextField()
-
-			case "shift+tab", "up", "k":
-				return m.handlePrevField()
-
-			case "right", "l":
-				return m.switchTab(1)
-
-			case "left", "h":
-				return m.switchTab(-1)
-
-			case "enter", "i":
-				if m.activeTab < len(m.fieldComponents) {
-					comps := m.fieldComponents[m.activeTab]
-					if len(comps) > 0 {
-						comp := comps[m.focusedIndex]
-						comp.Focus()
-						m.mode = ModeEditing
-					}
-				}
-				return m, nil
-			case "esc":
-				return m, func() tea.Msg {
-					return switchToMenuMsg{}
-				}
-			case "ctrl+s":
-				// Save the group configuration
-				if err := m.loader.SaveGroupFile(m.group); err != nil {
-					m.message = ErrorMessage("Error saving group: " + err.Error())
-				} else {
-					m.message = InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
-				}
-				return m, nil
-			}
-
-		case ModeEditing:
-			// Escape from editing
-			if msg.String() == "esc" {
-				return m.Update(FieldDoneMsg{})
-			}
-		}
-	}
-
-	// Forward input to focused component
-	if m.activeTab < len(m.fieldComponents) {
-		comps := m.fieldComponents[m.activeTab]
-		if len(comps) > 0 && m.focusedIndex < len(comps) {
-			newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
-			m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
-			return m, cmd
-		}
-	}
-
-	return m, nil
+	return m.tabHandlers[m.activeTab].Update(&m, msg)
 }
 
 func (m ConfigureGroupModel) View() string {
 	var lines []string
 
-	lines = append(lines, m.renderActiveTabContent()...)
+	lines = m.tabHandlers[m.activeTab].Render(&m)
 
 	if len(lines) == 0 {
 		lines = append(lines, "Not supported yet or no fields available in this tab.")
 	}
 
 	// Status bar rendering
-	statusBar := m.renderStatusBar()
+	statusBar := m.tabHandlers[m.activeTab].StatusBarText(&m)
 
 	// Optional message display (info, warning, error)
 	message := m.renderMessage()
 
 	return m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + statusBar + "\n" + message
-}
-func (m ConfigureGroupModel) renderActiveTabContent() []string {
-	var lines []string
-
-	components := m.fieldComponents[m.activeTab]
-
-	if m.tabs[m.activeTab].TabName == "Repositories" {
-		for _, comp := range components {
-			lines = append(lines, comp.View())
-
-			if comp.IsFocused() {
-				if repoComp, ok := comp.(*RepoComponent); ok {
-					previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.repo), "\n")
-					lines = append(lines, repoPreviewStyle.Render(previewBlock))
-				}
-			}
-		}
-	} else {
-		for _, comp := range components {
-			lines = append(lines, comp.View())
-		}
-	}
-
-	return lines
-}
-func (m ConfigureGroupModel) renderStatusBar() string {
-	var statusBar strings.Builder
-	var style lipgloss.Style
-
-	switch m.mode {
-	case ModeNavigation:
-		if m.tabs[m.activeTab].TabName == "Repositories" {
-			statusBar.WriteString("[REPO Mode] arrow keys to navigate, Enter to edit, Ctrl+s to save, q to quit")
-		} else {
-			statusBar.WriteString("[NAV Mode] Up/Down Left/Right to navigate, Enter to edit, Ctrl+s to save, q to quit")
-		}
-		style = configureGroupStatusStyleNavigation
-	case ModeEditing:
-		statusBar.WriteString("[EDT Mode] Press Esc or Enter to finish")
-		style = configureGroupStatusStyleEditing
-	}
-
-	return style.Render(statusBar.String())
 }
 
 func (m ConfigureGroupModel) renderMessage() string {

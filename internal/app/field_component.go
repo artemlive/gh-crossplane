@@ -115,6 +115,17 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode FocusMode) (FieldComponent
 	if msg, ok := msg.(tea.KeyMsg); ok && msg.String() == "enter" {
 		return c, func() tea.Msg { return FieldDoneMsg{} }
 	}
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			return c, func() tea.Msg { return FieldDoneMsg{} }
+		case "up":
+			return c, func() tea.Msg { return FieldDoneUpMsg{} }
+		case "down":
+			return c, func() tea.Msg { return FieldDoneDownMsg{} }
+		}
+	}
 	return c, cmd
 }
 
