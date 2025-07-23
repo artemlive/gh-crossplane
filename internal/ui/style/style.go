@@ -29,6 +29,11 @@ var (
 			BorderForeground(lipgloss.Color("63")).
 			Background(lipgloss.Color("234")).
 			Align(lipgloss.Center)
+
+	TextInputStyleEditingFocused    = lipgloss.NewStyle().Foreground(lipgloss.Color("#04B575"))
+	TextInputStyleEditingBlurred    = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))
+	TextInputStyleNavigationFocused = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	TextInputStyleNavigationBlurred = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))
 )
 
 //	func StyleModalBox(content string, width, height int) string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
@@ -107,7 +108,7 @@ type ConfigureGroupModel struct {
 	repoModal   tea.Model
 }
 
-func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.ManifestLoader, width, height int) ConfigureGroupModel {
+func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.ManifestLoader, width, height int) *ConfigureGroupModel {
 	m := ConfigureGroupModel{
 		tabs:         field.FieldGroups,
 		activeTab:    0,
@@ -131,16 +132,26 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 			m.tabHandlers[i] = &RepositoryTabHandler{}
 		}
 	}
-	return m
+	return &m
 }
 
-func (m ConfigureGroupModel) Init() tea.Cmd {
+func (m *ConfigureGroupModel) Init() tea.Cmd {
+	var cmds []tea.Cmd
+
+	// focus first field if present
 	comps := m.fieldComponents[m.activeTab]
 	if len(comps) > 0 {
 		m.focusedIndex = 0
-		return comps[0].Focus()
+		cmds = append(cmds, comps[0].Focus())
 	}
-	return nil
+
+	// tick used to update fields for blinking
+	tick := tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
+		return ui.TickMsg{}
+	})
+	cmds = append(cmds, tick)
+
+	return tea.Batch(cmds...)
 }
 
 func (m *ConfigureGroupModel) handleNextField() (tea.Model, tea.Cmd) {

@@ -68,6 +68,7 @@ type SwitchToGroupMsg struct {
 }
 
 type ForceReRenderMsg struct{}
+type TickMsg struct{}
 
 func FormatMessage(msg Message) string {
 	switch msg.Type {

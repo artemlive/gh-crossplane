@@ -3,6 +3,7 @@ package configuregroup
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/artemlive/gh-crossplane/internal/ui/field"
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/configurerepo"
@@ -34,11 +35,23 @@ func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Mode
 	switch msg := msg.(type) {
 
 	case field.FieldDoneMsg:
-		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
-			comps[m.focusedIndex].Blur()
-		}
 		m.mode = ui.ModeNavigation
-		return m, nil
+		// force re-rendering the style if needed
+		return m, func() tea.Msg { return ui.TickMsg{} }
+
+	case ui.TickMsg:
+		// update all fields for blinking
+		for i, comp := range m.fieldComponents[m.activeTab] {
+			newComp, _ := comp.Update(msg, m.mode)
+			m.fieldComponents[m.activeTab][i] = newComp
+		}
+
+		// set up the next tick
+		// we need this to update the fields for blinking
+		nextTick := tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
+			return ui.TickMsg{}
+		})
+		return m, nextTick
 
 	case field.FieldDoneUpMsg:
 		return m.handlePrevField()
@@ -88,16 +101,12 @@ func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Mode
 			}
 		}
 	}
-	cmd := tea.Cmd(nil)
-	for i, comp := range m.fieldComponents[m.activeTab] {
+	var cmd tea.Cmd
+	for i := range m.fieldComponents[m.activeTab] {
 		if i == m.focusedIndex {
-			newComp, c := comp.Update(msg, m.mode)
+			newComp, c := m.fieldComponents[m.activeTab][i].Update(msg, m.mode)
 			m.fieldComponents[m.activeTab][i] = newComp
 			cmd = c
-		} else {
-			// Always render non-focused fields in NAV mode
-			newComp, _ := comp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{}}, ui.ModeNavigation)
-			m.fieldComponents[m.activeTab][i] = newComp
 		}
 	}
 	return m, cmd
