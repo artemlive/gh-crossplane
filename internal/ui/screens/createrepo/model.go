@@ -5,8 +5,8 @@ import (
 
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/textinput"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 type CreateRepoModel struct {
@@ -37,7 +37,7 @@ func NewCreateRepoModel() CreateRepoModel {
 	ti.Placeholder = "repo-name"
 	ti.Focus()
 	ti.CharLimit = 64
-	ti.Width = 40
+	ti.SetWidth(40)
 	return CreateRepoModel{
 		step:  StepRepoName,
 		input: ti,

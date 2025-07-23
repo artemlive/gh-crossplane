@@ -5,7 +5,7 @@ import (
 
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 type CheckboxComponent struct {
@@ -32,7 +32,7 @@ func (c *CheckboxComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldCompone
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case " ", "enter":
+		case "space", "enter":
 			if c.Value == nil {
 				c.Value = new(bool)
 				// init to true if it was nil

@@ -5,7 +5,7 @@ import (
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	"github.com/artemlive/gh-crossplane/internal/util"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 // RepositoriesComponent is a list of repositories with preview and open/edit support

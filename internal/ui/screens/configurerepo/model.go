@@ -1,13 +1,16 @@
 package configurerepo
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/ui/field"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
 )
+
+// compile-time check to ensure ConfigureRepoModel implements the ViewableModel interface
+var _ ui.ViewableModel = (*ConfigureRepoModel)(nil)
 
 type ConfigureRepoModel struct {
 	repo         *domain.Repository
@@ -28,11 +31,11 @@ func New(repo *domain.Repository) *ConfigureRepoModel {
 	}
 }
 
-func (m ConfigureRepoModel) Init() tea.Cmd {
+func (m *ConfigureRepoModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m ConfigureRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *ConfigureRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch key := msg.String(); key {
@@ -59,7 +62,7 @@ func (m ConfigureRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m ConfigureRepoModel) View() string {
+func (m *ConfigureRepoModel) View() string {
 	var out string
 	var fields string
 	for _, field := range m.fields {

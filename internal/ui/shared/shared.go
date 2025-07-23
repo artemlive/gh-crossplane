@@ -4,8 +4,14 @@ import (
 	"strings"
 
 	"github.com/artemlive/gh-crossplane/internal/domain"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
+
+type ViewableModel interface {
+	tea.Model
+	tea.ViewModel
+}
 
 type FocusMode int
 

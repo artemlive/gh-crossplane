@@ -7,9 +7,9 @@ import (
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/list"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 type SelectGroupModel struct {

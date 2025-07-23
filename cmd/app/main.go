@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/artemlive/gh-crossplane/internal/app"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 func main() {

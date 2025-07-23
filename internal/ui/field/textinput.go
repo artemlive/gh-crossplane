@@ -6,8 +6,9 @@ import (
 	"github.com/artemlive/gh-crossplane/debug"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/textinput"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 type TextInputComponent struct {
@@ -20,10 +21,27 @@ type TextInputComponent struct {
 
 func NewTextInputComponent(label string, ptr *string) *TextInputComponent {
 	ti := textinput.New()
+	ti.VirtualCursor = false
+
 	if ptr != nil {
 		ti.SetValue(*ptr)
 	}
-	return &TextInputComponent{label: label, value: ptr, ti: ti, focused: false}
+
+	ti.Styles = textinput.DefaultStyles(true)
+
+	return &TextInputComponent{
+		label:   label,
+		value:   ptr,
+		ti:      ti,
+		focused: false,
+	}
+}
+
+func (c *TextInputComponent) Cursor() *tea.Cursor {
+	if c.ti.VirtualCursor {
+		return nil
+	}
+	return c.ti.Cursor()
 }
 
 func (c *TextInputComponent) View() string {
@@ -33,28 +51,28 @@ func (c *TextInputComponent) View() string {
 }
 
 func (c *TextInputComponent) applyStyles() {
+	debug.Log.Printf("Applying styles for field '%s' in mode '%v', cursor blinking: %t", c.label, c.mode, c.ti.Cursor().Blink)
+	c.ti.Cursor().Color = lipgloss.Color("red")
 	switch c.mode {
 	case ui.ModeEditing:
 		if c.focused {
-			c.ti.PromptStyle = style.TextInputStyleEditingFocused
-			c.ti.Cursor.Style = style.TextInputStyleEditingFocused
+			c.ti.Styles.Focused = style.TextInputStyleEditingFocused
 		} else {
-			c.ti.PromptStyle = style.TextInputStyleEditingBlurred
-			c.ti.Cursor.Style = style.TextInputStyleEditingBlurred
+			c.ti.Styles.Blurred = style.TextInputStyleEditingBlurred
 		}
+
 	case ui.ModeNavigation:
 		if c.focused {
-			c.ti.PromptStyle = style.TextInputStyleNavigationFocused
-			c.ti.Cursor.Style = style.TextInputStyleNavigationFocused
+			c.ti.Styles.Focused = style.TextInputStyleNavigationFocused
 		} else {
-			c.ti.PromptStyle = style.TextInputStyleNavigationBlurred
-			c.ti.Cursor.Style = style.TextInputStyleNavigationBlurred
+			c.ti.Styles.Blurred = style.TextInputStyleNavigationBlurred
 		}
+
 	default:
-		c.ti.PromptStyle = style.TextInputStyleEditingBlurred
-		c.ti.Cursor.Style = style.TextInputStyleEditingBlurred
+		c.ti.Styles.Blurred = style.TextInputStyleEditingBlurred
 	}
 }
+
 func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldComponent, tea.Cmd) {
 	c.mode = mode
 	c.applyStyles()
@@ -93,21 +111,19 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldCompon
 
 func (c *TextInputComponent) Focus() tea.Cmd {
 	debug.Log.Printf("Focus() called on field '%s'", c.label)
-
-	cmd := c.ti.Focus()
 	c.focused = true
-	c.ti.Cursor.Blink = true
-	return cmd
+	c.ti.Cursor().Blink = true
+	return c.ti.Focus()
 }
 
 func (c *TextInputComponent) Blur() {
 	debug.Log.Printf("Blur() called on field '%s'", c.label)
-
-	c.ti.Blur()
 	c.focused = false
+	c.ti.Blur()
 }
 
 func (c *TextInputComponent) IsFocused() bool { return c.focused }
+
 func (c *TextInputComponent) Init() tea.Cmd {
 	return nil
 }

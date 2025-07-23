@@ -6,25 +6,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemlive/gh-crossplane/internal/domain"
+	"github.com/artemlive/gh-crossplane/debug"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	"github.com/artemlive/gh-crossplane/internal/ui/field"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	"github.com/artemlive/gh-crossplane/internal/util"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 type MessageType int
-
-func GenerateRepoComponents(repos []domain.Repository) []field.FieldComponent {
-	var components []field.FieldComponent
-	for i, repo := range repos {
-		components = append(components, field.NewRepoComponent(repo, i))
-	}
-	return components
-}
 
 func GenerateRepoPreviewLines(obj any) []string {
 	var lines []string
@@ -87,7 +79,7 @@ func GenerateRepoPreviewLines(obj any) []string {
 }
 
 func (m *ConfigureGroupModel) isModalOpen() bool {
-	return m.repoModal != nil
+	return m.modal != nil
 }
 
 type ConfigureGroupModel struct {
@@ -105,7 +97,7 @@ type ConfigureGroupModel struct {
 	message ui.Message
 
 	tabHandlers []TabHandler
-	repoModal   tea.Model
+	modal       ui.ViewableModel
 }
 
 func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.ManifestLoader, width, height int) *ConfigureGroupModel {
@@ -200,20 +192,28 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m ConfigureGroupModel) View() string {
 	var lines []string
-
 	lines = m.tabHandlers[m.activeTab].Render(&m)
-
 	if len(lines) == 0 {
 		lines = append(lines, "Not supported yet or no fields available in this tab.")
 	}
 
-	// Status bar rendering
 	statusBar := m.tabHandlers[m.activeTab].StatusBarText(&m)
-
-	// Optional message display (info, warning, error)
 	message := m.renderMessage()
 
 	return m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + statusBar + "\n" + message
+}
+
+func (m ConfigureGroupModel) Cursor() *tea.Cursor {
+	debug.Log.Printf("we are in cursor method\n")
+	var comps = m.fieldComponents[m.activeTab]
+	if m.focusedIndex < len(comps) {
+		if c, ok := comps[m.focusedIndex].(field.Cursorer); ok && comps[m.focusedIndex].IsFocused() {
+			cursor := c.Cursor()
+			debug.Log.Printf("cursor = %+v", cursor)
+			return cursor
+		}
+	}
+	return nil
 }
 
 func (m ConfigureGroupModel) renderMessage() string {

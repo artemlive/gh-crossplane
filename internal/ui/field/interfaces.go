@@ -2,7 +2,7 @@ package field
 
 import (
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 // FieldComponent defines the interface for all field components
@@ -20,4 +20,8 @@ type FieldComponent interface {
 type PreviewableComponent interface {
 	FieldComponent
 	PreviewLines() []string
+}
+
+type Cursorer interface {
+	Cursor() *tea.Cursor
 }

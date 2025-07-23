@@ -11,7 +11,7 @@ import (
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/menu"
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/selectgroup"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 type appState struct {
@@ -23,7 +23,7 @@ func (m *appState) GetManifestLoader() *manifest.ManifestLoader {
 }
 
 type model struct {
-	curScreen tea.Model
+	curScreen ui.ViewableModel
 	state     appState
 
 	message ui.Message
@@ -97,8 +97,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	debug.Log.Printf("Delegating message: %T", msg)
 	// Delegate message to current screen
-	newScreen, cmd := m.curScreen.Update(msg)
-	m.curScreen = newScreen
+	model, cmd := m.curScreen.Update(msg)
+	screen, ok := model.(ui.ViewableModel)
+	if !ok {
+		m.message = ui.ErrorMessage("Current screen does not implement ViewableModel")
+	}
+	m.curScreen = screen
 	return m, cmd
 }
 

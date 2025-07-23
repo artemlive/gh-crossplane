@@ -10,7 +10,7 @@ import (
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/configurerepo"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 type TabHandler interface {
@@ -125,17 +125,22 @@ func (h GenericTabHandler) StatusBarText(m *ConfigureGroupModel) string {
 
 type RepositoryTabHandler struct{}
 
-func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
-	if m.repoModal != nil {
-		// Modal takes over render it exclusively
-		return []string{m.repoModal.View()}
+func (h *RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
+	if m.modal != nil {
+		// Render modal on top of existing tab view
+		content := h.renderTabContent(m)
+		modal := m.modal.View()
+		return []string{
+			style.DimBackground(content, ui.LastWindowSize.Width),
+			style.RenderModalCentered(modal, ui.LastWindowSize.Width, ui.LastWindowSize.Height),
+		}
 	}
+	return h.renderTabContent(m)
+}
 
+func (h *RepositoryTabHandler) renderTabContent(m *ConfigureGroupModel) []string {
 	var lines []string
-
-	// Render the repository components
-	components := m.fieldComponents[m.activeTab]
-	for _, comp := range components {
+	for _, comp := range m.fieldComponents[m.activeTab] {
 		lines = append(lines, comp.View())
 
 		if comp.IsFocused() {
@@ -144,21 +149,22 @@ func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
 			}
 		}
 	}
-
 	return lines
 }
 
 func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.isModalOpen() {
-		newModel, cmd := m.repoModal.Update(msg)
-		m.repoModal = newModel
+		newModel, cmd := m.modal.Update(msg)
+		if vm, ok := newModel.(ui.ViewableModel); ok {
+			m.modal = vm
+		}
 		return m, cmd
 	}
 
 	switch msg := msg.(type) {
 
 	case ui.SwitchToGroupMsg:
-		m.repoModal = nil
+		m.modal = nil
 		return m, nil
 
 	case field.FieldDoneMsg:
@@ -176,7 +182,7 @@ func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.
 	case field.FieldOpenMsg:
 		switch v := msg.Value.(type) {
 		case *domain.Repository:
-			m.repoModal = configurerepo.New(v)
+			m.modal = configurerepo.New(v)
 		default:
 			m.message = ui.ErrorMessage("Invalid repository value type in FieldOpenMsg")
 		}
