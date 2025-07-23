@@ -59,7 +59,6 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldCompon
 	c.mode = mode
 	c.applyStyles()
 
-	// Handle input depending on mode
 	if mode == ui.ModeEditing {
 		var cmd tea.Cmd
 		c.ti, cmd = c.ti.Update(msg)
@@ -82,7 +81,7 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldCompon
 		return c, cmd
 	}
 
-	// Navigation mode: ignore typing but allow blinking
+	// navigation mode: ignore typing but allow blinking
 	if _, ok := msg.(tea.KeyMsg); ok {
 		return c, nil
 	}
