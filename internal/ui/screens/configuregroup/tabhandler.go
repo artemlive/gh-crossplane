@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/ui/field"
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/configurerepo"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
@@ -74,10 +75,10 @@ func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Mode
 			case "enter", "i":
 				var cmd tea.Cmd
 				if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
-					// Blur the old focused field
+					// blur the old focused field
 					comps[m.focusedIndex].Blur()
 
-					// Focus the current one
+					// focus the current one
 					cmd = comps[m.focusedIndex].Focus()
 					m.mode = ui.ModeEditing
 				}
@@ -138,9 +139,8 @@ func (h RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
 		lines = append(lines, comp.View())
 
 		if comp.IsFocused() {
-			if repoComp, ok := comp.(*field.RepoComponent); ok {
-				previewBlock := strings.Join(GenerateRepoPreviewLines(repoComp.Repo()), "\n")
-				lines = append(lines, style.RepoPreviewStyle.Render(previewBlock))
+			if pv, ok := comp.(field.PreviewableComponent); ok {
+				lines = append(lines, style.RepoPreviewStyle.Render(strings.Join(pv.PreviewLines(), "\n")))
 			}
 		}
 	}
@@ -156,9 +156,11 @@ func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.
 	}
 
 	switch msg := msg.(type) {
+
 	case ui.SwitchToGroupMsg:
 		m.repoModal = nil
 		return m, nil
+
 	case field.FieldDoneMsg:
 		if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 {
 			comps[m.focusedIndex].Blur()
@@ -171,17 +173,15 @@ func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.
 
 	case field.FieldDoneDownMsg:
 		return m.handleNextField()
-
+	case field.FieldOpenMsg:
+		switch v := msg.Value.(type) {
+		case *domain.Repository:
+			m.repoModal = configurerepo.New(v)
+		default:
+			m.message = ui.ErrorMessage("Invalid repository value type in FieldOpenMsg")
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "up", "k":
-			return m.handlePrevField()
-		case "down", "j":
-			return m.handleNextField()
-		case "left", "h":
-			return m.switchTab(-1)
-		case "right", "l":
-			return m.switchTab(1)
 		case "ctrl+s":
 			err := m.loader.SaveGroupFile(m.group)
 			if err != nil {
@@ -190,32 +190,40 @@ func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.
 				m.message = ui.InfoMessage(fmt.Sprintf("Group '%s' saved successfully.", m.group.Title()))
 			}
 			return m, nil
-		case "enter":
-			focused := m.fieldComponents[m.activeTab][m.focusedIndex]
-			repoComp, ok := focused.(*field.RepoComponent)
-			if !ok {
-				m.message = ui.WarningMessage("Focused component is not a repository component")
-				return m, nil
-			}
-			m.repoModal = configurerepo.New(repoComp.Repo())
-
 		case "esc":
 			return m, func() tea.Msg { return ui.SwitchToMenuMsg{} }
+
 		case "q":
 			return m, tea.Quit
 		}
 	}
 
-	// Forward input to focused component
+	// Let component try to handle it first
 	if comps := m.fieldComponents[m.activeTab]; len(comps) > 0 && m.focusedIndex < len(comps) {
 		newComp, cmd := comps[m.focusedIndex].Update(msg, m.mode)
 		m.fieldComponents[m.activeTab][m.focusedIndex] = newComp
-		return m, cmd
+
+		if cmd != nil {
+			return m, cmd
+		}
+	}
+
+	// Only handle navigation *after* component had a chance
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
+		case "up", "k":
+			return m.handlePrevField()
+		case "down", "j":
+			return m.handleNextField()
+		case "left", "h":
+			return m.switchTab(-1)
+		case "right", "l":
+			return m.switchTab(1)
+		}
 	}
 
 	return m, nil
 }
-
 func (h RepositoryTabHandler) StatusBarText(m *ConfigureGroupModel) string {
 	return "[REPO Mode] Up/Down to navigate, Ctrl+s to save, q to quit"
 }

@@ -1,6 +1,8 @@
 package shared
 
 import (
+	"strings"
+
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -81,4 +83,9 @@ func FormatMessage(msg Message) string {
 	default:
 		return msg.Msg
 	}
+}
+
+// JoinVertical joins lines with newlines, for vertical stacking
+func JoinVertical(lines []string) string {
+	return strings.Join(lines, "\n")
 }

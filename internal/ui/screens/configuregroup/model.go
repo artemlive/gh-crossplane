@@ -128,7 +128,8 @@ func NewConfigureGroupModel(group *manifest.GroupFile, loader *manifest.Manifest
 			m.fieldComponents = append(m.fieldComponents, components)
 			m.tabHandlers[i] = &GenericTabHandler{}
 		} else {
-			m.fieldComponents = append(m.fieldComponents, GenerateRepoComponents(group.Manifest.Spec.Repositories))
+			repoComponent := field.NewRepositoriesComponent("Repositories", &group.Manifest.Spec.Repositories)
+			m.fieldComponents = append(m.fieldComponents, []field.FieldComponent{repoComponent})
 			m.tabHandlers[i] = &RepositoryTabHandler{}
 		}
 	}

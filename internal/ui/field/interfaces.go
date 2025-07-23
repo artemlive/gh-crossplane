@@ -14,3 +14,10 @@ type FieldComponent interface {
 	Blur()
 	IsFocused() bool
 }
+
+// PreviewableComponent extends FieldComponent to support preview functionality
+// The idea was to allow components to draw preview lines of their content
+type PreviewableComponent interface {
+	FieldComponent
+	PreviewLines() []string
+}

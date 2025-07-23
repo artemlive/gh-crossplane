@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
+	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -57,7 +58,7 @@ func (c *CheckboxComponent) View() string {
 	}
 	cursor := " "
 	if c.Focused {
-		cursor = ">"
+		cursor = style.FocusedPrefix
 	}
 	return fmt.Sprintf("%s [%s] %s", cursor, checked, c.Label)
 }

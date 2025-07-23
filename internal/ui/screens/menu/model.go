@@ -70,7 +70,7 @@ func (m MenuModel) View() string {
 	for i, choice := range menuOrder {
 		cursor := " "
 		if m.cursor == i {
-			cursor = style.MainMenuCurosrStyle.Render(">")
+			cursor = style.MainMenuCurosrStyle.Render(style.FocusedPrefix)
 			s += cursor + " " + style.MainMenuCurosrStyle.Render(menuLabels[choice]) + "\n"
 		} else {
 			s += cursor + " " + menuLabels[choice] + "\n"

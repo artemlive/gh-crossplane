@@ -30,10 +30,16 @@ var (
 			Background(lipgloss.Color("234")).
 			Align(lipgloss.Center)
 
-	TextInputStyleEditingFocused    = lipgloss.NewStyle().Foreground(lipgloss.Color("#04B575"))
-	TextInputStyleEditingBlurred    = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))
-	TextInputStyleNavigationFocused = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-	TextInputStyleNavigationBlurred = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))
+	TextInputStyleEditingFocused    = lipgloss.NewStyle().Foreground(lipgloss.Color("#04B575")) // green
+	TextInputStyleEditingBlurred    = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))       // white
+	TextInputStyleNavigationFocused = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))       // cyan
+	TextInputStyleNavigationBlurred = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))       // white
+
+	LabelStyle        = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("7")) // white
+	InactiveTextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))         // gray
+	FocusedTextStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("7")).Bold(true) // bright green
+	FieldBlockStyle   = lipgloss.NewStyle().Padding(0, 1)
+	FocusedPrefix     = "➤ "
 )
 
 //	func StyleModalBox(content string, width, height int) string {
