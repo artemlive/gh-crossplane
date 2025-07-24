@@ -106,10 +106,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
+func (m model) View() (string, *tea.Cursor) {
 	if m.curScreen == nil {
 		debug.Log.Println("No current screen to render")
-		return "No screen to display"
+		return "No screen to display", nil
 	}
 
 	debug.Log.Printf("Rendering screen: %T", m.curScreen)

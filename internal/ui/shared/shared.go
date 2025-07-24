@@ -10,7 +10,7 @@ import (
 
 type ViewableModel interface {
 	tea.Model
-	tea.ViewModel
+	tea.CursorModel
 }
 
 type FocusMode int

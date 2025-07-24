@@ -1,11 +1,14 @@
 package field
 
 import (
+	"fmt"
+
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	"github.com/artemlive/gh-crossplane/internal/util"
 	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // RepositoriesComponent is a list of repositories with preview and open/edit support
@@ -36,7 +39,7 @@ func (c *RepositoriesComponent) View() string {
 	for i, repo := range *c.repos {
 		prefix := "  "
 		if c.focused && c.index == i {
-			prefix = style.FocusedPrefix
+			prefix = fmt.Sprintf("%s ", style.FocusedPrefix)
 			lines = append(lines, style.FocusedTextStyle.Render(prefix+repo.Name))
 		} else {
 			lines = append(lines, prefix+repo.Name)
@@ -86,6 +89,17 @@ func (c *RepositoriesComponent) IsFocused() bool {
 
 func (c *RepositoriesComponent) Init() tea.Cmd {
 	return nil
+}
+
+func (c *RepositoriesComponent) Label() string {
+	return c.label
+}
+
+func (c *RepositoriesComponent) CursorOffset() int {
+	if len(*c.repos) == 0 || c.index >= len(*c.repos) {
+		return 0
+	}
+	return lipgloss.Width((*c.repos)[c.index].Name) + 2 // +2 for the prefix and space
 }
 
 func (c *RepositoriesComponent) PreviewLines() []string {

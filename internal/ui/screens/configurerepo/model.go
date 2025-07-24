@@ -62,7 +62,7 @@ func (m *ConfigureRepoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *ConfigureRepoModel) View() string {
+func (m *ConfigureRepoModel) View() (string, *tea.Cursor) {
 	var out string
 	var fields string
 	for _, field := range m.fields {
@@ -72,5 +72,5 @@ func (m *ConfigureRepoModel) View() string {
 		out += "\n" + ui.FormatMessage(m.message)
 	}
 
-	return style.StyleModalBox(fields, ui.LastWindowSize.Width, ui.LastWindowSize.Height) + "\n" + out
+	return style.StyleModalBox(fields, ui.LastWindowSize.Width, ui.LastWindowSize.Height) + "\n" + out, nil
 }

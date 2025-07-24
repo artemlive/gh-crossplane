@@ -65,7 +65,7 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m MenuModel) View() string {
+func (m MenuModel) View() (string, *tea.Cursor) {
 	s := "What do you want to do?\n\n"
 	for i, choice := range menuOrder {
 		cursor := " "
@@ -77,5 +77,5 @@ func (m MenuModel) View() string {
 		}
 	}
 	s += "\nUse up/down to move, enter to select, q to quit."
-	return s
+	return s, nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
+// TODO: consolidate this as a theme
 var (
 	AppStyle = lipgloss.NewStyle().Padding(1, 2)
 
@@ -35,7 +36,7 @@ var (
 	InactiveTextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))         // gray
 	FocusedTextStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("7")).Bold(true) // bright green
 	FieldBlockStyle   = lipgloss.NewStyle().Padding(0, 1)
-	FocusedPrefix     = "➤ "
+	FocusedPrefix     = "➤"
 	DimStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#555"))
 )
 
@@ -59,15 +60,6 @@ var TextInputStyleNavigationBlurred = textinput.StyleState{
 	Text:   lipgloss.NewStyle().Foreground(lipgloss.Color("238")),
 }
 
-//	func StyleModalBox(content string, width, height int) string {
-//		box := ModalBoxStyle.Render(content)
-//
-//		// Center the modal in the available space
-//		return lipgloss.Place(width, height,
-//			lipgloss.Center, lipgloss.Center,
-//			box,
-//		)
-//	}
 func StyleModalBox(content string, termWidth, termHeight int) string {
 	const modalWidth = 60
 	const modalHeight = 15

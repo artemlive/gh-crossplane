@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/artemlive/gh-crossplane/debug"
 	"github.com/artemlive/gh-crossplane/internal/domain"
 	"github.com/artemlive/gh-crossplane/internal/ui/field"
 	"github.com/artemlive/gh-crossplane/internal/ui/screens/configurerepo"
@@ -14,24 +15,26 @@ import (
 )
 
 type TabHandler interface {
-	Render(m *ConfigureGroupModel) []string
+	Render(m *ConfigureGroupModel) field.RenderResult
 	Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd)
 	StatusBarText(m *ConfigureGroupModel) string
 }
 
 type GenericTabHandler struct{}
 
-func (h GenericTabHandler) Render(m *ConfigureGroupModel) []string {
-	var lines []string
+func (h GenericTabHandler) Render(m *ConfigureGroupModel) field.RenderResult {
+	var result field.RenderResult
 
-	components := m.fieldComponents[m.activeTab]
-	for _, comp := range components {
-		lines = append(lines, comp.View())
+	for _, comp := range m.fieldComponents[m.activeTab] {
+		lines := strings.Split(comp.View(), "\n")
+		result.Components = append(result.Components, field.RenderedComponent{
+			Component: comp,
+			Lines:     lines,
+		})
 	}
-	return lines
 
+	return result
 }
-
 func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -41,6 +44,7 @@ func (h GenericTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Mode
 		return m, func() tea.Msg { return ui.TickMsg{} }
 
 	case ui.TickMsg:
+		debug.Log.Printf("Tick received in GenericTabHandler, updating fields for blinking")
 		// update all fields for blinking
 		for i, comp := range m.fieldComponents[m.activeTab] {
 			newComp, _ := comp.Update(msg, m.mode)
@@ -125,31 +129,26 @@ func (h GenericTabHandler) StatusBarText(m *ConfigureGroupModel) string {
 
 type RepositoryTabHandler struct{}
 
-func (h *RepositoryTabHandler) Render(m *ConfigureGroupModel) []string {
-	if m.modal != nil {
-		// Render modal on top of existing tab view
-		content := h.renderTabContent(m)
-		modal := m.modal.View()
-		return []string{
-			style.DimBackground(content, ui.LastWindowSize.Width),
-			style.RenderModalCentered(modal, ui.LastWindowSize.Width, ui.LastWindowSize.Height),
-		}
-	}
-	return h.renderTabContent(m)
-}
+func (h *RepositoryTabHandler) Render(m *ConfigureGroupModel) field.RenderResult {
+	var result field.RenderResult
 
-func (h *RepositoryTabHandler) renderTabContent(m *ConfigureGroupModel) []string {
-	var lines []string
 	for _, comp := range m.fieldComponents[m.activeTab] {
-		lines = append(lines, comp.View())
+		lines := strings.Split(comp.View(), "\n")
+		result.Components = append(result.Components, field.RenderedComponent{
+			Component: comp,
+			Lines:     lines,
+		})
 
 		if comp.IsFocused() {
 			if pv, ok := comp.(field.PreviewableComponent); ok {
-				lines = append(lines, style.RepoPreviewStyle.Render(strings.Join(pv.PreviewLines(), "\n")))
+				preview := style.RepoPreviewStyle.Render(strings.Join(pv.PreviewLines(), "\n"))
+				result.ExtraLines = append(result.ExtraLines, preview)
 			}
 		}
 	}
-	return lines
+
+	//TODO: modal drawing
+	return result
 }
 
 func (h *RepositoryTabHandler) Update(m *ConfigureGroupModel, msg tea.Msg) (tea.Model, tea.Cmd) {

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemlive/gh-crossplane/debug"
 	"github.com/artemlive/gh-crossplane/internal/manifest"
 	"github.com/artemlive/gh-crossplane/internal/ui/field"
 	ui "github.com/artemlive/gh-crossplane/internal/ui/shared"
@@ -190,32 +189,68 @@ func (m ConfigureGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.tabHandlers[m.activeTab].Update(&m, msg)
 }
 
-func (m ConfigureGroupModel) View() string {
-	var lines []string
-	lines = m.tabHandlers[m.activeTab].Render(&m)
-	if len(lines) == 0 {
-		lines = append(lines, "Not supported yet or no fields available in this tab.")
-	}
+// View renders the entire view of the ConfigureGroupModel.
+// The cursor position must be calculated based on the curren layout
+// the component itself knows it's X cursor offset, but the Y position is determined by the layout
+func (m ConfigureGroupModel) View() (string, *tea.Cursor) {
+	var layers []*lipgloss.Layer
+	var globalCursor *tea.Cursor
+	layoutY := 0
 
-	statusBar := m.tabHandlers[m.activeTab].StatusBarText(&m)
-	message := m.renderMessage()
+	// === TABS HEADER ===
+	tabs := m.renderTabs()
+	tabLines := strings.Split(tabs, "\n")
+	layers = append(layers, lipgloss.NewLayer(tabs).Y(layoutY))
+	layoutY += len(tabLines)
 
-	return m.renderTabs() + "\n\n" + strings.Join(lines, "\n\n") + "\n\n" + statusBar + "\n" + message
-}
+	// === SPACER ===
+	layers = append(layers, lipgloss.NewLayer("").Y(layoutY))
+	layoutY++
 
-func (m ConfigureGroupModel) Cursor() *tea.Cursor {
-	debug.Log.Printf("we are in cursor method\n")
-	var comps = m.fieldComponents[m.activeTab]
-	if m.focusedIndex < len(comps) {
-		if c, ok := comps[m.focusedIndex].(field.Cursorer); ok && comps[m.focusedIndex].IsFocused() {
-			cursor := c.Cursor()
-			debug.Log.Printf("cursor = %+v", cursor)
-			return cursor
+	// === DELEGATED RENDERING ===
+	res := m.tabHandlers[m.activeTab].Render(&m)
+
+	for _, rc := range res.Components {
+		view := strings.Join(rc.Lines, "\n")
+		layers = append(layers, lipgloss.NewLayer(view).Y(layoutY))
+
+		// Track cursor if focused
+		if rc.Component.IsFocused() {
+			if c, ok := rc.Component.(field.Cursorer); ok {
+				cursor := c.Cursor()
+				if cursor != nil {
+					globalCursor = tea.NewCursor(
+						rc.Component.CursorOffset()+cursor.X,
+						layoutY+cursor.Y,
+					)
+				}
+			}
 		}
-	}
-	return nil
-}
 
+		layoutY += len(rc.Lines)
+	}
+
+	// === EXTRAS (Previews, Modals etc.) ===
+	for _, line := range res.ExtraLines {
+		layers = append(layers, lipgloss.NewLayer(line).Y(layoutY))
+		layoutY += lipgloss.Height(line)
+	}
+
+	// === STATUS BAR ===
+	status := m.tabHandlers[m.activeTab].StatusBarText(&m)
+	statusLines := strings.Split(status, "\n")
+	layers = append(layers, lipgloss.NewLayer(status).Y(layoutY))
+	layoutY += len(statusLines)
+
+	// === MESSAGE ===
+	if msg := m.renderMessage(); msg != "" {
+		msgLines := strings.Split(msg, "\n")
+		layers = append(layers, lipgloss.NewLayer(msg).Y(layoutY))
+		layoutY += len(msgLines)
+	}
+
+	return lipgloss.NewCanvas(layers...).Render(), globalCursor
+}
 func (m ConfigureGroupModel) renderMessage() string {
 	if m.message.Msg == "" {
 		return ""

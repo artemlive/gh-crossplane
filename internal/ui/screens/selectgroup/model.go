@@ -113,6 +113,6 @@ func (m SelectGroupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 }
 
-func (m SelectGroupModel) View() string {
-	return style.AppStyle.Render(m.list.View())
+func (m SelectGroupModel) View() (string, *tea.Cursor) {
+	return style.AppStyle.Render(m.list.View()), nil
 }

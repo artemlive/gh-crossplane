@@ -8,7 +8,7 @@ import (
 	"github.com/artemlive/gh-crossplane/internal/ui/style"
 	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type TextInputComponent struct {
@@ -19,22 +19,43 @@ type TextInputComponent struct {
 	mode    ui.FocusMode
 }
 
-func NewTextInputComponent(label string, ptr *string) *TextInputComponent {
+func NewTextInputComponent(label string, val *string) *TextInputComponent {
 	ti := textinput.New()
 	ti.VirtualCursor = false
+	// to fit the placeholder
+	ti.SetWidth(20)
 
-	if ptr != nil {
-		ti.SetValue(*ptr)
+	if val != nil {
+		ti.SetValue(*val)
 	}
 
 	ti.Styles = textinput.DefaultStyles(true)
 
 	return &TextInputComponent{
 		label:   label,
-		value:   ptr,
+		value:   val,
 		ti:      ti,
 		focused: false,
 	}
+}
+
+func (c *TextInputComponent) SetValue(val string) {
+	if c.value == nil {
+		c.value = new(string)
+	}
+	*c.value = val
+	c.ti.SetValue(val)
+}
+
+func (c *TextInputComponent) Value() string {
+	if c.value == nil {
+		return ""
+	}
+	return *c.value
+}
+
+func (c *TextInputComponent) SetPlaceholder(placeholder string) {
+	c.ti.Placeholder = placeholder
 }
 
 func (c *TextInputComponent) Cursor() *tea.Cursor {
@@ -51,8 +72,6 @@ func (c *TextInputComponent) View() string {
 }
 
 func (c *TextInputComponent) applyStyles() {
-	debug.Log.Printf("Applying styles for field '%s' in mode '%v', cursor blinking: %t", c.label, c.mode, c.ti.Cursor().Blink)
-	c.ti.Cursor().Color = lipgloss.Color("red")
 	switch c.mode {
 	case ui.ModeEditing:
 		if c.focused {
@@ -73,6 +92,10 @@ func (c *TextInputComponent) applyStyles() {
 	}
 }
 
+func (c *TextInputComponent) SetLabel(label string) {
+	c.label = label
+}
+
 func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldComponent, tea.Cmd) {
 	c.mode = mode
 	c.applyStyles()
@@ -80,10 +103,7 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldCompon
 	if mode == ui.ModeEditing {
 		var cmd tea.Cmd
 		c.ti, cmd = c.ti.Update(msg)
-
-		if c.value != nil {
-			*c.value = c.ti.Value()
-		}
+		c.SetValue(c.ti.Value())
 
 		if key, ok := msg.(tea.KeyMsg); ok {
 			switch key.String() {
@@ -109,10 +129,13 @@ func (c *TextInputComponent) Update(msg tea.Msg, mode ui.FocusMode) (FieldCompon
 	return c, cmd
 }
 
+func (c *TextInputComponent) CursorOffset() int {
+	return lipgloss.Width(c.label) + 2 // +2 for ": "
+}
+
 func (c *TextInputComponent) Focus() tea.Cmd {
 	debug.Log.Printf("Focus() called on field '%s'", c.label)
 	c.focused = true
-	c.ti.Cursor().Blink = true
 	return c.ti.Focus()
 }
 
@@ -125,5 +148,9 @@ func (c *TextInputComponent) Blur() {
 func (c *TextInputComponent) IsFocused() bool { return c.focused }
 
 func (c *TextInputComponent) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
+}
+
+func (c *TextInputComponent) Label() string {
+	return c.label
 }
